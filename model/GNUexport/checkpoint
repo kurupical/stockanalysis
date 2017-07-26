@@ -1,0 +1,6 @@
+model_checkpoint_path: "gnu4000.ckpt"
+all_model_checkpoint_paths: "gnu0.ckpt"
+all_model_checkpoint_paths: "gnu1000.ckpt"
+all_model_checkpoint_paths: "gnu2000.ckpt"
+all_model_checkpoint_paths: "gnu3000.ckpt"
+all_model_checkpoint_paths: "gnu4000.ckpt"
