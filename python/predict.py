@@ -21,6 +21,12 @@ if TEST_MODE:
 else:
     CSV_PATH = "../dataset/stock_analysis/" #本番
 MODEL_PATH = "../model/GNUexport/"
+# OUTPUT_ITEMで出力する項目を先頭に記述
+INPUT_ITEM = ["終値", "出来高", "日付", "証券コード", "売上高", "純利益", "総資産"]
+INPUT_ITEM_INDEX_OF_DATE = INPUT_ITEM.index("日付")
+INPUT_ITEM_INDEX_OF_CODE = INPUT_ITEM.index("証券コード")
+
+OUTPUT_ITEM = ["終値", "出来高"]
 
 
 class Network:
@@ -98,7 +104,8 @@ class Stock:
         # pandasよりnumpyのほうが早い！
         #    read_df = pd.read_csv(file)
         #    df = pd.concat([df, read_df], axis=0)
-            read_data = pd.read_csv(file).values
+            read_data = pd.read_csv(file)
+            read_data = read_data[INPUT_ITEM].values
             if len(read_data) != 0:
                 if len(data) == 1:
                     data = read_data
@@ -107,11 +114,12 @@ class Stock:
             pbar.update(1)
         pbar.close()
         self.data = data
+        self.output_index = []
 
     def get(self, code=None):
         # pandas -> numpyに置き換え
         # return self.df[(self.df['証券コード'] == int(code[0:4]))]
-        index = np.where(self.data[:,6] == int(code[0:4]))
+        index = np.where(self.data[:, INPUT_ITEM_INDEX_OF_CODE] == int(code[0:4]))
         data = self.data[index]
         return data[:]
 
@@ -147,7 +155,7 @@ class Stock:
                 data_count += len(ary)
                 for i in range(0, len(ary) - unit):
                     data.append(ary[i:i + unit, :])
-                    target.append(ary[i + unit, 1:6])
+                    target.append(ary[i + unit, :len(OUTPUT_ITEM)])
                 if len(x) == 1:
                     x = np.array(data).reshape(len(data), unit, len(data[0][0]))
                     y = np.array(target).reshape(len(target),len(target[0]))
@@ -175,12 +183,10 @@ def completion(data, x):
     '''
 
     data_m = data[:]
-    data_m[0] = np.log10(10**data[0] + 1)
-    data_m[1] = x[0]
-    data_m[2] = x[1]
-    data_m[3] = x[2]
-    data_m[4] = x[3]
-    data_m[5] = x[4]
+    data_m[INPUT_ITEM_INDEX_OF_DATE] = np.log10(10**data[INPUT_ITEM_INDEX_OF_DATE] + 1)
+    for i in range(len(x)):
+        data_m[i] = x[i]
+    data_m[1]
 
     return data_m
 
@@ -188,12 +194,13 @@ def run():
     # 将来的には関数化できるよう、引数っぽいものはここに全部定義しておく
     unit = 100
     if TEST_MODE:
-        epochs = 5000 # test
-        n_hidden = 300 # test
+        epochs = 100 # test
+        n_hidden = 2000 # test
+        batch_size = 30
     else:
         epochs = 5000 # 本番
         n_hidden = 300 # 本番
-    batch_size = 5
+        batch_size = 300
     test_ratio = 0.9
 
     history = {
@@ -255,7 +262,7 @@ def run():
         timelap.reset()
 
         save_path = MODEL_PATH + "gnu" + str(epoch) + ".ckpt"
-        if epoch % 1000 == 0:
+        if epoch % 100 == 0:
             saver1.save(sess, save_path)
     save_path = MODEL_PATH + "gnu" + str(epochs) + ".ckpt"
 
@@ -287,9 +294,9 @@ def run():
     # よーわからんけど、originalが上書きされるので間抜けだけどいったんこれで・・・
     # original_endval = 10 ** original[:, 4]
     # teachdata_endval = 10 ** original[:unit, 4]
-    original_endval = 10 ** stock.get(code="1301")[:, 4]
-    teachdata_endval = 10 ** stock.get(code="1301")[:unit, 4]
-    predict_endval = np.append(teachdata_endval, 10 ** predicted[:, 4], axis=0)
+    original_endval = stock.get(code="1301")[:, 0]
+    teachdata_endval = stock.get(code="1301")[:unit, 0]
+    predict_endval = np.append(teachdata_endval, predicted[:, 0], axis=0)
 
     plt.rc('font', family='serif')
     plt.figure()
