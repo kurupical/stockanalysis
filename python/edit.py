@@ -5,9 +5,7 @@ import sys
 import pandas as pd
 import numpy as np
 import glob
-import MySQLdb
 import common
-import pandas.io.sql as psql
 
 DATASET_PATH = "../dataset/"
 
@@ -176,7 +174,7 @@ def run():
         # コード以外は常用対数
         if "証券コード" in df_marge.columns:
             df_code = df_marge["証券コード"]
-            df_marge = pd.np.log10(df_marge)
+            # df_marge = pd.np.log10(df_marge)
             df_marge = df_marge.replace([np.inf, -np.inf], np.nan).fillna(0)
             df_marge["証券コード"] = df_code
         df_marge.to_csv(output_path, index=False)

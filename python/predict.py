@@ -22,8 +22,8 @@ else:
     CSV_PATH = "../dataset/stock_analysis/" #本番
 MODEL_PATH = "../model/GNUexport/"
 # OUTPUT_ITEMで出力する項目を先頭に記述
-INPUT_ITEMS = ["終値", "出来高"]
-OUTPUT_ITEMS = ["終値", "出来高"]
+INPUT_ITEMS = ["終値"]
+OUTPUT_ITEMS = ["終値"]
 
 
 class Network:
@@ -88,100 +88,105 @@ class Network:
 
 
 class Stock:
-    def __init__(self, input_items):
-        # 株価の取得
-        input_path = CSV_PATH + "*.csv"
-        files = glob.glob(input_path)
+    def __init__(self, read_data):
+        codes = read_data["証券コード"].values
+        self.code = codes[0]
+        self.data_std_info = pd.DataFrame(columns=["item", "mean", "std"])
+        data = read_data[INPUT_ITEMS]
 
-        df = pd.DataFrame()
-        print("Data Load:")
-        pbar = tqdm(total=len(files))
-        data = np.array([[]])
-        input_items.append("証券コード")
-        for file in files:
-        # pandasよりnumpyのほうが早い！
-        #    read_df = pd.read_csv(file)
-        #    df = pd.concat([df, read_df], axis=0)
-            read_data = pd.read_csv(file)
-            if len(read_data.index != 0):
-                read_data = read_data[input_items].values
-                if len(data) == 1:
-                    data = read_data
-                else:
-                    data = np.concatenate((data, read_data), axis=0)
-            pbar.update(1)
-        pbar.close()
-        self.data = data
-        self.output_index = []
 
-    def get(self, code=None):
-        # pandas -> numpyに置き換え
-        # return self.df[(self.df['証券コード'] == int(code[0:4]))]
-        index = np.where(self.data[:, self.get_index("証券コード")] == int(code[0:4]))
-        data = self.data[index]
-        data = np.delete(data, self.get_index("証券コード"), 1) # 証券コードの行を消去
+        # 標準化データ(平均=0,標準偏差=1)
+        self.data_std = data
+        for str in INPUT_ITEMS:
+            ary = np.copy(data[str].values)
+            self.data_std[str] = (ary - ary.mean()) / ary.std()
+            std_info = pd.Series([str, ary.mean(), ary.std()], index=self.data_std_info.columns)
+            self.data_std_info = self.data_std_info.append(std_info, ignore_index=True)
 
-        return data
+    def unit(self, unit):
+        x = np.array([[[]]])
+        y = np.array([[]])
+
+        data = []
+        target = []
+        ary = self.data_std.values
+        if len(self.data_std) > unit:
+            for i in range(0, len(ary) - unit):
+                data.append(ary[i:i + unit, :])
+                target.append(ary[i + unit, :len(OUTPUT_ITEMS)])
+            if len(x) == 1:
+                x = np.array(data).reshape(len(data), unit, len(data[0][0]))
+                y = np.array(target).reshape(len(target),len(target[0]))
+            else:
+                x = np.concatenate((x, np.array(data).reshape(len(data), unit, len(data[0][0]))), axis=0)
+                y = np.concatenate((y, np.array(target).reshape(len(data), len(target[0]))), axis=0)
+        return x, y
+
+    def unstd(self, data=None):
+        if data is None:
+            data_unstd = np.copy(self.data_std)
+        else:
+            data_unstd = np.copy(data)
+
+        for i, str in zip(range(len(INPUT_ITEMS)), INPUT_ITEMS):
+            df = self.data_std_info[self.data_std_info["item"] == str]
+            data_unstd[:,i] = data_unstd[:,i] * df['std'].values + df['mean'].values
+
+        return data_unstd
 
     def get_index(self, item_name):
         return INPUT_ITEMS.index(item_name)
 
-    def unit_data(self, unit):
-        '''
-        株式データをunit単位に分割した教師データを返す。
-        param:
-            unit : 分割単位
-                (例:unit=3)
-                [1,2,3,...,99,100] ->
-                    入力 : [1,2,3],[2,3,4],[3,4,5],...,[97,98,99]
-                    出力 : 4,5,6,...,100
-        return:
-            x : 教師データの入力
-            y : 教師データの出力
 
-        '''
-        code_count = 0
-        data_count = 0
+class StockController:
+    def __init__(self):
+        self.stockdata = [] # Stockオブジェクトを格納するlist
+
+    def load(self):
+        input_path = CSV_PATH + "*.csv"
+        files = glob.glob(input_path)
+        pbar = tqdm(total=len(files))
+        data = np.array([[]])
+        for file in files:
+            read_data = pd.read_csv(file)
+            if (len(read_data.index) != 0):
+                stock = Stock(read_data)
+                self.stockdata.append(stock)
+        pbar.update(1)
+        pbar.close()
+
+    def unit_data(self, unit):
         x = np.array([[[]]])
         y = np.array([[]])
-        codes = common.get_stockscode()
-        print("Data Unit:")
-        pbar2 = tqdm(total=len(codes))
-        for code in codes:
-        #    df = self.get(code=code)
-        #    ary = df.value
-            ary = self.get(code=code)
-            data = []
-            target = []
-            if len(ary) > unit:
-                code_count += 1
-                data_count += len(ary)
-                for i in range(0, len(ary) - unit):
-                    data.append(ary[i:i + unit, :])
-                    target.append(ary[i + unit, :len(OUTPUT_ITEMS)])
-                if len(x) == 1:
-                    x = np.array(data).reshape(len(data), unit, len(data[0][0]))
-                    y = np.array(target).reshape(len(target),len(target[0]))
-                else:
-                    x = np.concatenate((x, np.array(data).reshape(len(data), unit, len(data[0][0]))), axis=0)
-                    y = np.concatenate((y, np.array(target).reshape(len(data), len(target[0]))), axis=0)
-            pbar2.update(1)
-        pbar2.close()
-        print("getdata 結果:\n")
+        for stock_obj in self.stockdata:
+            data, target = stock_obj.unit(unit)
+            if len(x) == 1:
+                x = np.array(data)
+                y = np.array(target)
+            else:
+                x = np.concatenate((x, data), axis=0)
+                y = np.concatenate((y, target), axis=0)
+
+        print("unit_data 結果:\n")
         print("*******************************************")
-        print("分析銘柄数:", code_count)
-        print("分析データ行数:", data_count)
-        print("NWへの入力データ:", len(x))
+        print("分析銘柄数:", len(self.stockdata))
+        print("入力データ:", len(x))
         print("*******************************************")
 
         return x, y
+
+    def get_data(self, code):
+        for i in range(len(self.stockdata)):
+            stock_obj = self.stockdata[i]
+            if stock_obj.code == code:
+                return stock_obj
 
 def run():
     # 将来的には関数化できるよう、引数っぽいものはここに全部定義しておく
     unit = 100
     if TEST_MODE:
-        epochs = 500 # test
-        n_hidden = 500 # test
+        epochs = 5000 # test
+        n_hidden = 50 # test
         batch_size = 100
     else:
         epochs = 5000 # 本番
@@ -193,8 +198,10 @@ def run():
         'val_loss': []
     }
 
-    stock = Stock(INPUT_ITEMS)
-    X, Y = stock.unit_data(unit)
+    stock_con = StockController()
+
+    stock_con.load()
+    X, Y = stock_con.unit_data(unit)
 
     GRUNetwork = Network("GRU")
 
@@ -254,7 +261,9 @@ def run():
 
     truncate = unit
 
-    original = stock.get(code="1301")
+    # test
+    stock_obj = stock_con.get_data(code=1301)
+    original = stock_obj.unstd()
     Z = original[:unit].reshape(1, unit, n_in)
     predicted = []
 
@@ -274,13 +283,14 @@ def run():
         predicted.append(y_.reshape(-1))
 
     predicted = np.array(predicted)
+    predicted = stock_obj.unstd(predicted)
 
     # よーわからんけど、originalが上書きされるので間抜けだけどいったんこれで・・・
-    original_endval = 10 ** original[:, stock.get_index("終値")]
-    teachdata_endval = 10 ** original[:unit, stock.get_index("終値")]
+    original_endval = original[:, stock_obj.get_index("終値")]
+    teachdata_endval = original[:unit, stock_obj.get_index("終値")]
     #original_endval = 10**stock.get(code="1301")[:, 0]
     #teachdata_endval = 10**stock.get(code="1301")[:unit, 0]
-    predict_endval = np.append(teachdata_endval, 10**predicted[:, stock.get_index("終値")], axis=0)
+    predict_endval = np.append(teachdata_endval, predicted[:, stock_obj.get_index("終値")], axis=0)
 
     plt.rc('font', family='serif')
     plt.figure()
