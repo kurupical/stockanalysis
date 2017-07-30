@@ -22,11 +22,8 @@ else:
     CSV_PATH = "../dataset/stock_analysis/" #本番
 MODEL_PATH = "../model/GNUexport/"
 # OUTPUT_ITEMで出力する項目を先頭に記述
-INPUT_ITEM = ["終値", "出来高", "日付", "証券コード", "売上高", "純利益", "総資産"]
-INPUT_ITEM_INDEX_OF_DATE = INPUT_ITEM.index("日付")
-INPUT_ITEM_INDEX_OF_CODE = INPUT_ITEM.index("証券コード")
-
-OUTPUT_ITEM = ["終値", "出来高"]
+INPUT_ITEMS = ["終値", "出来高"]
+OUTPUT_ITEMS = ["終値", "出来高"]
 
 
 class Network:
@@ -91,7 +88,7 @@ class Network:
 
 
 class Stock:
-    def __init__(self):
+    def __init__(self, input_items):
         # 株価の取得
         input_path = CSV_PATH + "*.csv"
         files = glob.glob(input_path)
@@ -100,13 +97,14 @@ class Stock:
         print("Data Load:")
         pbar = tqdm(total=len(files))
         data = np.array([[]])
+        input_items.append("証券コード")
         for file in files:
         # pandasよりnumpyのほうが早い！
         #    read_df = pd.read_csv(file)
         #    df = pd.concat([df, read_df], axis=0)
             read_data = pd.read_csv(file)
-            read_data = read_data[INPUT_ITEM].values
-            if len(read_data) != 0:
+            if len(read_data.index != 0):
+                read_data = read_data[input_items].values
                 if len(data) == 1:
                     data = read_data
                 else:
@@ -119,9 +117,14 @@ class Stock:
     def get(self, code=None):
         # pandas -> numpyに置き換え
         # return self.df[(self.df['証券コード'] == int(code[0:4]))]
-        index = np.where(self.data[:, INPUT_ITEM_INDEX_OF_CODE] == int(code[0:4]))
+        index = np.where(self.data[:, self.get_index("証券コード")] == int(code[0:4]))
         data = self.data[index]
-        return data[:]
+        data = np.delete(data, self.get_index("証券コード"), 1) # 証券コードの行を消去
+
+        return data
+
+    def get_index(self, item_name):
+        return INPUT_ITEMS.index(item_name)
 
     def unit_data(self, unit):
         '''
@@ -155,7 +158,7 @@ class Stock:
                 data_count += len(ary)
                 for i in range(0, len(ary) - unit):
                     data.append(ary[i:i + unit, :])
-                    target.append(ary[i + unit, :len(OUTPUT_ITEM)])
+                    target.append(ary[i + unit, :len(OUTPUT_ITEMS)])
                 if len(x) == 1:
                     x = np.array(data).reshape(len(data), unit, len(data[0][0]))
                     y = np.array(target).reshape(len(target),len(target[0]))
@@ -173,30 +176,13 @@ class Stock:
 
         return x, y
 
-def completion(data, x):
-    '''
-    予測データの他データを補完する。
-    param:
-        x : 配列[始値、高値、安値、終値、出来高]
-    return:
-        xに売上情報などがすべて補完されたデータ
-    '''
-
-    data_m = data[:]
-    data_m[INPUT_ITEM_INDEX_OF_DATE] = np.log10(10**data[INPUT_ITEM_INDEX_OF_DATE] + 1)
-    for i in range(len(x)):
-        data_m[i] = x[i]
-    data_m[1]
-
-    return data_m
-
 def run():
     # 将来的には関数化できるよう、引数っぽいものはここに全部定義しておく
     unit = 100
     if TEST_MODE:
-        epochs = 100 # test
-        n_hidden = 2000 # test
-        batch_size = 30
+        epochs = 500 # test
+        n_hidden = 500 # test
+        batch_size = 100
     else:
         epochs = 5000 # 本番
         n_hidden = 300 # 本番
@@ -207,7 +193,7 @@ def run():
         'val_loss': []
     }
 
-    stock = Stock()
+    stock = Stock(INPUT_ITEMS)
     X, Y = stock.unit_data(unit)
 
     GRUNetwork = Network("GRU")
@@ -279,24 +265,22 @@ def run():
             n_batch: 1
         })
 
-        y_cmpl = completion(z_[0, -1], y_[0])
-
         seq = np.concatenate(
-            (z_.reshape(unit, n_in)[1:], y_cmpl.reshape(1, n_in)), axis=0)\
+            (z_.reshape(unit, n_in)[1:], y_.reshape(1, n_in)), axis=0)\
             .reshape(1, unit, n_in)
 
         # Z = np.append(Z, seq, axis=0)
         Z = seq
-        predicted.append(y_cmpl)
+        predicted.append(y_.reshape(-1))
 
     predicted = np.array(predicted)
 
     # よーわからんけど、originalが上書きされるので間抜けだけどいったんこれで・・・
-    # original_endval = 10 ** original[:, 4]
-    # teachdata_endval = 10 ** original[:unit, 4]
-    original_endval = stock.get(code="1301")[:, 0]
-    teachdata_endval = stock.get(code="1301")[:unit, 0]
-    predict_endval = np.append(teachdata_endval, predicted[:, 0], axis=0)
+    original_endval = 10 ** original[:, stock.get_index("終値")]
+    teachdata_endval = 10 ** original[:unit, stock.get_index("終値")]
+    #original_endval = 10**stock.get(code="1301")[:, 0]
+    #teachdata_endval = 10**stock.get(code="1301")[:unit, 0]
+    predict_endval = np.append(teachdata_endval, 10**predicted[:, stock.get_index("終値")], axis=0)
 
     plt.rc('font', family='serif')
     plt.figure()
