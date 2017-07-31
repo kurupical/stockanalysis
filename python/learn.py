@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from sklearn.utils import shuffle
 
-TEST_MODE = False
-# TEST_MODE = True
+# TEST_MODE = False
+TEST_MODE = True
 
 if TEST_MODE:
     CSV_PATH = "../dataset/debug/stock_analysis/" #テスト
@@ -25,6 +25,14 @@ MODEL_PATH = "../model/GNUexport/"
 INPUT_ITEMS = ["終値"]
 OUTPUT_ITEMS = ["終値"]
 ANALYSIS_CODE = 1301
+LEARNING_RATE = 0.001
+UNIT = 100
+TEST_EPOCHS = 500
+TEST_N_HIDDEN = 300
+TEST_BATCH_SIZE = 40
+EPOCHS = 5000
+N_HIDDEN = 300
+BATCH_SIZE = 100
 
 
 class Network:
@@ -80,7 +88,7 @@ class Network:
         mse = tf.reduce_mean(tf.square(y - t))
         return mse
 
-    def training(self, loss, learning_rate=0.001, beta1=0.9, beta2=0.999):
+    def training(self, loss, learning_rate=LEARNING_RATE, beta1=0.9, beta2=0.999):
         optimizer = \
             tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2)
 
@@ -222,17 +230,8 @@ class StockController:
             if stock_obj.code == code:
                 return stock_obj
 
-def run():
+def run(unit, epochs, n_hidden, learning_rate, batch_size, clf):
     # 将来的には関数化できるよう、引数っぽいものはここに全部定義しておく
-    unit = 100
-    if TEST_MODE:
-        epochs = 500 # test
-        n_hidden = 50 # test
-        batch_size = 50
-    else:
-        epochs = 500 # 本番
-        n_hidden = 100 # 本番
-        batch_size = 100
     test_ratio = 0.9
 
     history = {
@@ -245,7 +244,7 @@ def run():
     stock_con.search_high_cor(cor=0.5, code=ANALYSIS_CODE, unit=unit)
     X, Y = stock_con.unit_data(unit)
 
-    GRUNetwork = Network("GRU")
+    network = Network(clf)
 
     n_in = len(X[0,0])
     n_out = len(Y[0])
@@ -259,9 +258,9 @@ def run():
     t = tf.placeholder(tf.float32, shape=[None, n_out])
     n_batch = tf.placeholder(tf.int32, [])
 
-    y = GRUNetwork.inference(x, n_batch=n_batch, maxlen=unit, n_hidden=n_hidden, n_out=n_out)
-    ls = GRUNetwork.loss(y, t)
-    train_step = GRUNetwork.training(ls)
+    y = network.inference(x, n_batch=n_batch, maxlen=unit, n_hidden=n_hidden, n_out=n_out)
+    ls = network.loss(y, t)
+    train_step = network.training(ls)
 
     init = tf.global_variables_initializer()
     saver1 = tf.train.Saver()
@@ -296,10 +295,11 @@ def run():
         #print("W:", sess.run(V), "b:", sess.run(c))
         timelap.reset()
 
-        save_path = MODEL_PATH + "gnu" + str(epoch) + ".ckpt"
+        #save_path = MODEL_PATH + "lstm" + str(epoch) + "UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(LEARNING_RATE) + ".ckpt"
         #if epoch % 100 == 0:
         #    saver1.save(sess, save_path)
-    save_path = MODEL_PATH + "gnu" + str(epochs) + ".ckpt"
+    save_path = MODEL_PATH + "lstm" + str(epoch) + "UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(LEARNING_RATE) + ".ckpt"
+    saver1.save(sess, save_path)
 
     truncate = unit
 
@@ -339,7 +339,23 @@ def run():
     plt.plot(original_endval, linestyle='dotted', color='#aaaaaa')
     plt.plot(teachdata_endval, linestyle='dashed', color='black')
     plt.plot(predict_endval, color='black')
-    plt.show()
+    filename = "loss" + str(val_loss) + "★UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(LEARNING_RATE) + ".png"
+    plt.savefig(filename)
+    # plt.show()
 
 if __name__ == '__main__':
-    run()
+
+    unit = [50,100]
+    learning_rate = [0.01, 0.005, 0.001]
+    n_hidden = [50, 100, 500, 1000]
+    classifier = ["RNN", "LSTM", "GRU"]
+    for un in unit:
+        for lr in learning_rate:
+            for hid in n_hidden:
+                for clf in classifier:
+                    run(unit=un, \
+                        learning_rate=lr, \
+                        n_hidden=hid, \
+                        epochs=5000, \
+                        batch_size=40, \
+                        clf=clf)
