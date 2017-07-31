@@ -8,13 +8,14 @@ import glob
 import numpy as np
 import tensorflow as tf
 import common
+import random
 import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 from sklearn.utils import shuffle
 
-# TEST_MODE = False
-TEST_MODE = True
+TEST_MODE = False
+# TEST_MODE = True
 
 if TEST_MODE:
     CSV_PATH = "../dataset/debug/stock_analysis/" #テスト
@@ -42,7 +43,7 @@ class Network:
         '''
         self.clf = clf
 
-    def inference(self, x, n_batch=None, maxlen=None, n_hidden=None, n_out=None):
+    def inference(self, x, n_batch=None, maxlen=None, n_hidden=None, n_out=None, layer=None):
         # Network全体の設定を行い、モデルの出力・予想結果をかえす
         def _weight_variable(shape):
             initial = tf.truncated_normal(shape, stddev=0.01)
@@ -53,15 +54,20 @@ class Network:
             return tf.Variable(initial)
 
         def setcell(clf):
-            if clf == 'RNN':
-                cell = tf.contrib.rnn.BasicRNNCell(n_hidden)
-            elif clf == 'LSTM':
-                cell = tf.contrib.rnn.BasicLSTMCell(n_hidden)
-            elif clf == 'GRU':
-                cell = tf.contrib.rnn.GRUCell(n_hidden)
-            else:
-                cell = None
-            return cell
+            stacked_rnn = []
+            for i in range(layer):
+                # multi_cell = tf.contrib.rnn.MultiRNNCell([cell] * 2)
+                if clf == 'RNN':
+                    cell = tf.contrib.rnn.BasicRNNCell(n_hidden)
+                elif clf == 'LSTM':
+                    cell = tf.contrib.rnn.BasicLSTMCell(n_hidden)
+                elif clf == 'GRU':
+                    cell = tf.contrib.rnn.GRUCell(n_hidden)
+                else:
+                    cell = None
+                stacked_rnn.append(cell)
+            multi_cell = tf.contrib.rnn.MultiRNNCell(cells=stacked_rnn)
+            return multi_cell
 
         # モデルの設定
         cell = setcell(self.clf)
@@ -69,7 +75,7 @@ class Network:
 
         state = initial_state
         outputs = []
-        with tf.variable_scope(self.clf):
+        with tf.variable_scope(self.clf + str(random.random())):
             for t in range(maxlen):
                 if t > 0:
                     tf.get_variable_scope().reuse_variables()
@@ -154,6 +160,7 @@ class StockController:
     def load(self):
         input_path = CSV_PATH + "*.csv"
         files = glob.glob(input_path)
+        print ("load")
         pbar = tqdm(total=len(files))
         data = np.array([[]])
         for file in files:
@@ -230,18 +237,19 @@ class StockController:
             if stock_obj.code == code:
                 return stock_obj
 
-def run(unit, epochs, n_hidden, learning_rate, batch_size, clf):
+def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con):
     # 将来的には関数化できるよう、引数っぽいものはここに全部定義しておく
     test_ratio = 0.9
 
     history = {
         'val_loss': []
     }
-    f = open("log.txt", "w")
-    stock_con = StockController()
 
-    stock_con.load()
-    stock_con.search_high_cor(cor=0.5, code=ANALYSIS_CODE, unit=unit)
+    if len(stock_con.stockdata) == 0:
+        #初回だけデータロード
+        stock_con.load()
+        stock_con.search_high_cor(cor=0.5, code=ANALYSIS_CODE, unit=unit)
+
     X, Y = stock_con.unit_data(unit)
 
     network = Network(clf)
@@ -258,7 +266,7 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf):
     t = tf.placeholder(tf.float32, shape=[None, n_out])
     n_batch = tf.placeholder(tf.int32, [])
 
-    y = network.inference(x, n_batch=n_batch, maxlen=unit, n_hidden=n_hidden, n_out=n_out)
+    y = network.inference(x, n_batch=n_batch, maxlen=unit, n_hidden=n_hidden, n_out=n_out, layer=layer)
     ls = network.loss(y, t)
     train_step = network.training(ls, learning_rate=learning_rate)
 
@@ -296,12 +304,10 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf):
         #print("W:", sess.run(V), "b:", sess.run(c))
         timelap.reset()
 
-        save_path = MODEL_PATH + "loss" + str(val_loss) + "epoch" + str(epoch) + "UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(learning_rate) + "-clf" + clf + ".ckpt"
-        if epoch % 1000 == 0:
-            run_log = "unit:" + str(unit) + " n_hidden:" + str(n_hidden) + " learning_rate:" + str(learning_rate) + " clf:" + clf + run_log
-            f.write(run_log)
+        if epoch+1 % 1000 == 0:
+            save_path = MODEL_PATH + "loss" + str(val_loss) + "epoch" + str(epoch) + "UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(learning_rate) + "-clf" + clf + "-layer" + str(layer) + ".ckpt"
             saver1.save(sess, save_path)
-    save_path = MODEL_PATH + "loss" + str(val_loss) + "epoch" + str(epoch) + "UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(learning_rate) + "-clf" + clf + ".ckpt"
+    save_path = MODEL_PATH + "loss" + str(val_loss) + "epoch" + str(epoch) + "UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(learning_rate) + "-clf" + clf + "-layer" + str(layer) + ".ckpt"
     saver1.save(sess, save_path)
 
     truncate = unit
@@ -342,24 +348,28 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf):
     plt.plot(original_endval, linestyle='dotted', color='#aaaaaa')
     plt.plot(teachdata_endval, linestyle='dashed', color='black')
     plt.plot(predict_endval, color='black')
-    filename = "loss" + str(val_loss) + "★UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(learning_rate) + "-clf" + clf + ".png"
+    filename = "loss" + str(val_loss) + "★UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(learning_rate) + "-clf" + clf + "-layer" + str(layer) + ".png"
     plt.savefig(filename)
     # plt.show()
-    f.close()
 
 if __name__ == '__main__':
 
-    unit = [50,100]
-    learning_rate = [0.01, 0.005, 0.001]
-    n_hidden = [50, 100, 500, 1000]
-    classifier = ["RNN", "LSTM", "GRU"]
+    unit = [50]
+    learning_rate = [0.001]
+    n_hidden = [50, 100]
+    classifier = ["LSTM", "GRU"]
+    layer = [2,3]
+    stock_con = StockController()
     for un in unit:
         for lr in learning_rate:
             for hid in n_hidden:
                 for clf in classifier:
-                    run(unit=un, \
-                        learning_rate=lr, \
-                        n_hidden=hid, \
-                        epochs=5000, \
-                        batch_size=40, \
-                        clf=clf)
+                    for ly in layer:
+                        run(unit=un, \
+                            learning_rate=lr, \
+                            n_hidden=hid, \
+                            epochs=5000, \
+                            clf=clf, \
+                            batch_size=40, \
+                            layer=ly, \
+                            stock_con=stock_con)
