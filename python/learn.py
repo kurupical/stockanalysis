@@ -237,7 +237,7 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf):
     history = {
         'val_loss': []
     }
-
+    f = open("log.txt", "w")
     stock_con = StockController()
 
     stock_con.load()
@@ -260,7 +260,7 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf):
 
     y = network.inference(x, n_batch=n_batch, maxlen=unit, n_hidden=n_hidden, n_out=n_out)
     ls = network.loss(y, t)
-    train_step = network.training(ls)
+    train_step = network.training(ls, learning_rate=learning_rate)
 
     init = tf.global_variables_initializer()
     saver1 = tf.train.Saver()
@@ -290,15 +290,18 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf):
         })
 
         history['val_loss'].append(val_loss)
-        print("epoch:", epoch," validation loss:", val_loss, "lap:", \
-              int(timelap.get()), "total:", int(timetotal.get()))
+        run_log = "epoch:" + str(epoch) + " validation loss:" + str(val_loss) + " lap:" + \
+                  str(round(timelap.get(), 2)) + " total:" + str(round(timetotal.get(), 2))
+        print(run_log)
         #print("W:", sess.run(V), "b:", sess.run(c))
         timelap.reset()
 
-        #save_path = MODEL_PATH + "lstm" + str(epoch) + "UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(LEARNING_RATE) + ".ckpt"
-        #if epoch % 100 == 0:
-        #    saver1.save(sess, save_path)
-    save_path = MODEL_PATH + "lstm" + str(epoch) + "UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(LEARNING_RATE) + ".ckpt"
+        save_path = MODEL_PATH + "loss" + str(val_loss) + "epoch" + str(epoch) + "UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(learning_rate) + "-clf" + clf + ".ckpt"
+        if epoch % 1000 == 0:
+            run_log = "unit:" + str(unit) + " n_hidden:" + str(n_hidden) + " learning_rate:" + str(learning_rate) + " clf:" + clf + run_log
+            f.write(run_log)
+            saver1.save(sess, save_path)
+    save_path = MODEL_PATH + "loss" + str(val_loss) + "epoch" + str(epoch) + "UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(learning_rate) + "-clf" + clf + ".ckpt"
     saver1.save(sess, save_path)
 
     truncate = unit
@@ -339,9 +342,10 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf):
     plt.plot(original_endval, linestyle='dotted', color='#aaaaaa')
     plt.plot(teachdata_endval, linestyle='dashed', color='black')
     plt.plot(predict_endval, color='black')
-    filename = "loss" + str(val_loss) + "★UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(LEARNING_RATE) + ".png"
+    filename = "loss" + str(val_loss) + "★UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(learning_rate) + "-clf" + clf + ".png"
     plt.savefig(filename)
     # plt.show()
+    f.close()
 
 if __name__ == '__main__':
 
