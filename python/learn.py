@@ -14,8 +14,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from sklearn.utils import shuffle
 
-TEST_MODE = False
-# TEST_MODE = True
+# TEST_MODE = False
+TEST_MODE = True
 
 if TEST_MODE:
     CSV_PATH = "../dataset/debug/stock_analysis/" #テスト
@@ -43,7 +43,7 @@ class Network:
         '''
         self.clf = clf
 
-    def inference(self, x, n_batch=None, maxlen=None, n_hidden=None, n_out=None, layer=None):
+    def inference(self, x, n_batch=None, maxlen=None, n_hidden=None, n_out=None, layer=None, isTraining=False):
         # Network全体の設定を行い、モデルの出力・予想結果をかえす
         def _weight_variable(shape):
             initial = tf.truncated_normal(shape, stddev=0.01)
@@ -87,6 +87,8 @@ class Network:
         V = _weight_variable([n_hidden, n_out])
         c = _bias_variable([n_out])
         y = tf.matmul(output, V) + c
+        if isTraining:
+            y = self.batch_normalization([n_hidden], y)
 
         return y
 
@@ -101,6 +103,12 @@ class Network:
         train_step = optimizer.minimize(loss)
         return train_step
 
+    def batch_normalization(self, shape, x):
+        eps = 1e-8
+        beta = tf.Variable(tf.zeros(shape))
+        gamma = tf.Variable(tf.ones(shape))
+        mean, var = tf.nn.moments(x, [0])
+        return gamma * (x - mean) / tf.sqrt(var + eps) + beta
 
 class Stock:
     def __init__(self, read_data):
@@ -239,6 +247,42 @@ class StockController:
 
 def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con):
     # 将来的には関数化できるよう、引数っぽいものはここに全部定義しておく
+    def graph_save():
+        # test
+        stock_obj = stock_con.get_data(code=ANALYSIS_CODE)
+        original = stock_obj.unstd()
+        Z = original[:unit].reshape(1, unit, n_in)
+        predicted = []
+
+        for i in range(len(original) - unit):
+            z_ = Z[-1:]
+            y_ = y.eval(session=sess, feed_dict={
+                x: Z[-1:],
+                n_batch: 1
+            })
+
+            seq = np.concatenate(
+                (z_.reshape(unit, n_in)[1:], y_.reshape(1, n_in)), axis=0)\
+                .reshape(1, unit, n_in)
+
+            # Z = np.append(Z, seq, axis=0)
+            Z = seq
+            predicted.append(y_.reshape(-1))
+
+        predicted = np.array(predicted)
+        predicted = stock_obj.unstd(predicted)
+        original_endval = original[:, stock_obj.get_index("終値")]
+        teachdata_endval = original[:unit, stock_obj.get_index("終値")]
+        predict_endval = np.append(teachdata_endval, predicted[:, stock_obj.get_index("終値")], axis=0)
+
+        plt.rc('font', family='serif')
+        plt.figure()
+        plt.plot(original_endval, linestyle='dotted', color='#aaaaaa')
+        plt.plot(teachdata_endval, linestyle='dashed', color='black')
+        plt.plot(predict_endval, color='black')
+        filename = "loss" + str(val_loss) + "★UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(learning_rate) + "-clf" + clf + "-layer" + str(layer) + ".png"
+        plt.savefig(filename)
+
     test_ratio = 0.9
 
     history = {
@@ -264,6 +308,7 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
 
     x = tf.placeholder(tf.float32, shape=[None, unit, n_in])
     t = tf.placeholder(tf.float32, shape=[None, n_out])
+    isTraining = tf.placeholder(tf.bool)
     n_batch = tf.placeholder(tf.int32, [])
 
     y = network.inference(x, n_batch=n_batch, maxlen=unit, n_hidden=n_hidden, n_out=n_out, layer=layer)
@@ -288,13 +333,15 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
             sess.run(train_step, feed_dict={
                 x : X_[start:end],
                 t : Y_[start:end],
-                n_batch: batch_size
+                n_batch: batch_size,
+                isTraining : True
             })
 
         val_loss = ls.eval(session=sess, feed_dict={
             x: X_validation,
             t: Y_validation,
-            n_batch: N_validation
+            n_batch: N_validation,
+            isTraining : False
         })
 
         history['val_loss'].append(val_loss)
@@ -304,61 +351,24 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
         #print("W:", sess.run(V), "b:", sess.run(c))
         timelap.reset()
 
-        if epoch+1 % 1000 == 0:
+        if (epoch+1) % 10000 == 0:
+            graph_save()
+
+        if (epoch+1) % 1000 == 0:
             save_path = MODEL_PATH + "loss" + str(val_loss) + "epoch" + str(epoch) + "UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(learning_rate) + "-clf" + clf + "-layer" + str(layer) + ".ckpt"
             saver1.save(sess, save_path)
     save_path = MODEL_PATH + "loss" + str(val_loss) + "epoch" + str(epoch) + "UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(learning_rate) + "-clf" + clf + "-layer" + str(layer) + ".ckpt"
     saver1.save(sess, save_path)
 
-    truncate = unit
 
-    # test
-    stock_obj = stock_con.get_data(code=ANALYSIS_CODE)
-    original = stock_obj.unstd()
-    Z = original[:unit].reshape(1, unit, n_in)
-    predicted = []
-
-    for i in range(len(original) - unit):
-        z_ = Z[-1:]
-        y_ = y.eval(session=sess, feed_dict={
-            x: Z[-1:],
-            n_batch: 1
-        })
-
-        seq = np.concatenate(
-            (z_.reshape(unit, n_in)[1:], y_.reshape(1, n_in)), axis=0)\
-            .reshape(1, unit, n_in)
-
-        # Z = np.append(Z, seq, axis=0)
-        Z = seq
-        predicted.append(y_.reshape(-1))
-
-    predicted = np.array(predicted)
-    predicted = stock_obj.unstd(predicted)
-
-    # よーわからんけど、originalが上書きされるので間抜けだけどいったんこれで・・・
-    original_endval = original[:, stock_obj.get_index("終値")]
-    teachdata_endval = original[:unit, stock_obj.get_index("終値")]
-    #original_endval = 10**stock.get(code="1301")[:, 0]
-    #teachdata_endval = 10**stock.get(code="1301")[:unit, 0]
-    predict_endval = np.append(teachdata_endval, predicted[:, stock_obj.get_index("終値")], axis=0)
-
-    plt.rc('font', family='serif')
-    plt.figure()
-    plt.plot(original_endval, linestyle='dotted', color='#aaaaaa')
-    plt.plot(teachdata_endval, linestyle='dashed', color='black')
-    plt.plot(predict_endval, color='black')
-    filename = "loss" + str(val_loss) + "★UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(learning_rate) + "-clf" + clf + "-layer" + str(layer) + ".png"
-    plt.savefig(filename)
-    # plt.show()
 
 if __name__ == '__main__':
 
     unit = [50]
-    learning_rate = [0.001]
-    n_hidden = [50, 100]
-    classifier = ["LSTM", "GRU"]
-    layer = [2,3]
+    learning_rate = [0.01]
+    n_hidden = [50]
+    classifier = ["LSTM"]
+    layer = [2]
     stock_con = StockController()
     for un in unit:
         for lr in learning_rate:
@@ -368,7 +378,7 @@ if __name__ == '__main__':
                         run(unit=un, \
                             learning_rate=lr, \
                             n_hidden=hid, \
-                            epochs=5000, \
+                            epochs=200000, \
                             clf=clf, \
                             batch_size=40, \
                             layer=ly, \
