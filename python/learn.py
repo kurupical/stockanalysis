@@ -10,7 +10,9 @@ import tensorflow as tf
 import common
 import random
 import matplotlib.pyplot as plt
+import time
 
+from tensorflow.contrib import rnn
 from tqdm import tqdm
 from sklearn.utils import shuffle
 
@@ -22,6 +24,7 @@ if TEST_MODE:
 else:
     CSV_PATH = "../dataset/stock_analysis/" #本番
 MODEL_PATH = "../model/GNUexport/"
+GRAPH_PATH = "../graph/" + time.ctime().replace(" ", "_") + "/"
 # OUTPUT_ITEMで出力する項目を先頭に記述
 INPUT_ITEMS = ["終値"]
 OUTPUT_ITEMS = ["終値"]
@@ -43,7 +46,7 @@ class Network:
         '''
         self.clf = clf
 
-    def inference(self, x, n_batch=None, maxlen=None, n_hidden=None, n_out=None, layer=None, isTraining=False):
+    def inference(self, x, n_batch=None, maxlen=None, n_hidden=None, n_out=None, n_in=None, layer=None, isTraining=False):
         # Network全体の設定を行い、モデルの出力・予想結果をかえす
         def _weight_variable(shape):
             initial = tf.truncated_normal(shape, stddev=0.01)
@@ -70,6 +73,7 @@ class Network:
             return multi_cell
 
         # モデルの設定
+        '''
         cell = setcell(self.clf)
         initial_state = cell.zero_state(n_batch, tf.float32)
 
@@ -81,12 +85,26 @@ class Network:
                     tf.get_variable_scope().reuse_variables()
                 (cell_output, state) = cell(x[:, t, :], state)
                 outputs.append(cell_output)
-
         output = outputs[-1]
-
         V = _weight_variable([n_hidden, n_out])
         c = _bias_variable([n_out])
         y = tf.matmul(output, V) + c
+
+        '''
+        x = tf.transpose(x, [1, 0, 2])
+        x = tf.reshape(x, [-1, n_in])
+        x = tf.split(x, maxlen, 0)
+
+        cell_forward = rnn.BasicLSTMCell(n_hidden, forget_bias=1.0)
+        cell_backward = rnn.BasicLSTMCell(n_hidden, forget_bias=1.0)
+
+        outputs, _, _ = \
+            rnn.static_bidirectional_rnn(cell_forward, cell_backward, x,
+                                         dtype=tf.float32)
+        V = _weight_variable([n_hidden*2, n_out])
+        c = _bias_variable([n_out])
+        y = tf.matmul(outputs[-1], V) + c
+
         if isTraining:
             y = self.batch_normalization([n_hidden], y)
 
@@ -111,20 +129,22 @@ class Network:
         return gamma * (x - mean) / tf.sqrt(var + eps) + beta
 
 class Stock:
-    def __init__(self, read_data):
+    def __init__(self, read_data, isStdmode=False):
+        self.isStdmode = isStdmode
         codes = read_data["証券コード"].values
         self.code = codes[0]
         self.data_std_info = pd.DataFrame(columns=["item", "mean", "std"])
         data = read_data[INPUT_ITEMS]
 
-
         # 標準化データ(平均=0,標準偏差=1)
-        self.data_std = data
-        for str in INPUT_ITEMS:
-            ary = np.copy(data[str].values)
-            self.data_std[str] = (ary - ary.mean()) / ary.std()
-            std_info = pd.Series([str, ary.mean(), ary.std()], index=self.data_std_info.columns)
-            self.data_std_info = self.data_std_info.append(std_info, ignore_index=True)
+        self.data = data
+
+        if isStdmode:
+            for str in INPUT_ITEMS:
+                ary = np.copy(data[str].values)
+                self.data[str] = (ary - ary.mean()) / ary.std()
+                std_info = pd.Series([str, ary.mean(), ary.std()], index=self.data_std_info.columns)
+                self.data_std_info = self.data_std_info.append(std_info, ignore_index=True)
 
     def unit(self, unit):
         x = np.array([[[]]])
@@ -132,8 +152,9 @@ class Stock:
 
         data = []
         target = []
-        ary = self.data_std[-unit*2:].values
-        if len(self.data_std) > unit:
+        # ary = self.data[-unit*2:].values
+        ary = self.data.values
+        if len(self.data) > unit:
             for i in range(0, len(ary) - unit):
                 data.append(ary[i:i + unit, :])
                 target.append(ary[i + unit, :len(OUTPUT_ITEMS)])
@@ -146,16 +167,19 @@ class Stock:
         return x, y
 
     def unstd(self, data=None):
-        if data is None:
-            data_unstd = np.copy(self.data_std)
+        if self.isStdmode:
+            if data is None:
+                data_unstd = np.copy(self.data)
+            else:
+                data_unstd = np.copy(data)
+
+            for i, str in zip(range(len(INPUT_ITEMS)), INPUT_ITEMS):
+                df = self.data_std_info[self.data_std_info["item"] == str]
+                data_unstd[:,i] = data_unstd[:,i] * df['std'].values + df['mean'].values
+
+            return data_unstd
         else:
-            data_unstd = np.copy(data)
-
-        for i, str in zip(range(len(INPUT_ITEMS)), INPUT_ITEMS):
-            df = self.data_std_info[self.data_std_info["item"] == str]
-            data_unstd[:,i] = data_unstd[:,i] * df['std'].values + df['mean'].values
-
-        return data_unstd
+            return data
 
     def get_index(self, item_name):
         return INPUT_ITEMS.index(item_name)
@@ -191,7 +215,7 @@ class StockController:
         '''
         ary = []
         x = self.get_data(code)
-        x = x.data_std[-unit:]
+        x = x.data[-unit:]
         print ("search_high_cor")
         amount_of_search = len(self.stockdata)
         pbar = tqdm(total=len(self.stockdata))
@@ -199,8 +223,8 @@ class StockController:
             if stock_obj.code == code:
                 ary.append(stock_obj)
             else:
-                if len(stock_obj.data_std) > unit*2:
-                    y = stock_obj.data_std[-unit*2:-unit]
+                if len(stock_obj.data) > unit*2:
+                    y = stock_obj.data[-unit*2:-unit]
                     xy_cor = np.corrcoef(x.values.reshape(-1), y.values.reshape(-1))[0][1]
                     if abs(xy_cor) > cor:
                         ary.append(stock_obj)
@@ -247,14 +271,14 @@ class StockController:
 
 def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con):
     # 将来的には関数化できるよう、引数っぽいものはここに全部定義しておく
-    def graph_save():
+    def save_pred_graph():
         # test
         stock_obj = stock_con.get_data(code=ANALYSIS_CODE)
-        original = stock_obj.unstd()
+        original = stock_obj.unstd(stock_obj.data.values)
         Z = original[:unit].reshape(1, unit, n_in)
         predicted = []
 
-        for i in range(len(original) - unit):
+        for i in range(unit):
             z_ = Z[-1:]
             y_ = y.eval(session=sess, feed_dict={
                 x: Z[-1:],
@@ -280,11 +304,30 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
         plt.plot(original_endval, linestyle='dotted', color='#aaaaaa')
         plt.plot(teachdata_endval, linestyle='dashed', color='black')
         plt.plot(predict_endval, color='black')
-        filename = "loss" + str(val_loss) + "★UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(learning_rate) + "-clf" + clf + "-layer" + str(layer) + ".png"
+        filename = GRAPH_PATH + "pred/" + get_filename() + ".png"
         plt.savefig(filename)
 
-    test_ratio = 0.9
+    def save_loss_graph():
+        plt.rc('font', family="serif")
+        plt.figure()
+        plt.plot(history['val_loss'], color='black')
+        plt.xlabel('epoch')
+        plt.ylabel('loss')
+        filename = GRAPH_PATH + "loss/" + get_filename() + ".png"
+        plt.savefig(filename)
 
+    def save_session():
+        save_path = MODEL_PATH + get_filename() + ".ckpt"
+        saver1.save(sess, save_path)
+
+    def get_filename():
+        return "loss" + str(round(val_loss,3)) + "epoch" + str(epoch) + "★UNIT:" + str(unit) + "-HID:" + str(n_hidden) + "-lr:" + str(learning_rate) + "-clf:" + clf + "-layer:" + str(layer)
+
+    if not os.path.isdir(GRAPH_PATH):
+        os.mkdir(GRAPH_PATH)
+        os.mkdir(GRAPH_PATH + "loss/")
+        os.mkdir(GRAPH_PATH + "pred/")
+    test_ratio = 0.9
     history = {
         'val_loss': []
     }
@@ -311,7 +354,7 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
     isTraining = tf.placeholder(tf.bool)
     n_batch = tf.placeholder(tf.int32, [])
 
-    y = network.inference(x, n_batch=n_batch, maxlen=unit, n_hidden=n_hidden, n_out=n_out, layer=layer)
+    y = network.inference(x, n_batch=n_batch, maxlen=unit, n_hidden=n_hidden, n_out=n_out, n_in=n_in, layer=layer)
     ls = network.loss(y, t)
     train_step = network.training(ls, learning_rate=learning_rate)
 
@@ -322,9 +365,9 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
 
     n_batches = N_train // batch_size
 
-
     timetotal = common.TimeMeasure()
     timelap = common.TimeMeasure()
+    loss_ary = []
     for epoch in range(epochs):
         X_, Y_ = shuffle(X_train, Y_train, random_state=0)
         for i in range(n_batches):
@@ -351,24 +394,27 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
         #print("W:", sess.run(V), "b:", sess.run(c))
         timelap.reset()
 
-        if (epoch+1) % 10000 == 0:
-            graph_save()
+        if (epoch+1) % 1000 == 0:
+            save_pred_graph()
 
         if (epoch+1) % 1000 == 0:
-            save_path = MODEL_PATH + "loss" + str(val_loss) + "epoch" + str(epoch) + "UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(learning_rate) + "-clf" + clf + "-layer" + str(layer) + ".ckpt"
-            saver1.save(sess, save_path)
-    save_path = MODEL_PATH + "loss" + str(val_loss) + "epoch" + str(epoch) + "UNIT" + str(unit) + "-N_HIDDEN" + str(n_hidden) + "-learning_rate" + str(learning_rate) + "-clf" + clf + "-layer" + str(layer) + ".ckpt"
-    saver1.save(sess, save_path)
+            save_session()
+
+        if (epoch+1) % 10000 == 0:
+            save_loss_graph()
+    save_pred_graph()
+    save_session()
 
 
 
 if __name__ == '__main__':
 
     unit = [50]
-    learning_rate = [0.01]
-    n_hidden = [50]
+    learning_rate = [0.001]
+    n_hidden = [400]
     classifier = ["LSTM"]
-    layer = [2]
+    layer = [3]
+    epochs = 500000
     stock_con = StockController()
     for un in unit:
         for lr in learning_rate:
@@ -378,7 +424,7 @@ if __name__ == '__main__':
                         run(unit=un, \
                             learning_rate=lr, \
                             n_hidden=hid, \
-                            epochs=200000, \
+                            epochs=epochs, \
                             clf=clf, \
                             batch_size=40, \
                             layer=ly, \
