@@ -25,10 +25,11 @@ else:
     CSV_PATH = "../dataset/stock_analysis/" #本番
 MODEL_PATH = "../model/GNUexport/"
 GRAPH_PATH = "../graph/" + time.ctime().replace(" ", "_") + "/"
+LOG_PATH = "../log/"
 # OUTPUT_ITEMで出力する項目を先頭に記述
 INPUT_ITEMS = ["終値"]
 OUTPUT_ITEMS = ["終値"]
-ANALYSIS_CODE = 1301
+ANALYSIS_CODE = 3597
 LEARNING_RATE = 0.001
 UNIT = 100
 TEST_EPOCHS = 500
@@ -37,6 +38,8 @@ TEST_BATCH_SIZE = 40
 EPOCHS = 5000
 N_HIDDEN = 300
 BATCH_SIZE = 100
+IS_STD_MODE = True
+IS_UPDOWNRATIO_MODE = False
 
 
 class Network:
@@ -70,10 +73,10 @@ class Network:
                     cell = None
                 stacked_rnn.append(cell)
             multi_cell = tf.contrib.rnn.MultiRNNCell(cells=stacked_rnn)
+            initial_state = cell.zero_state(n_batch, tf.float32)
             return multi_cell
 
         # モデルの設定
-        '''
         cell = setcell(self.clf)
         initial_state = cell.zero_state(n_batch, tf.float32)
 
@@ -95,13 +98,17 @@ class Network:
         x = tf.reshape(x, [-1, n_in])
         x = tf.split(x, maxlen, 0)
 
-        cell_forward = rnn.BasicLSTMCell(n_hidden, forget_bias=1.0)
-        cell_backward = rnn.BasicLSTMCell(n_hidden, forget_bias=1.0)
+        cell_forward = setcell(clf)
+        initial_state = cell_forward.zero_state(n_batch, tf.float32)
+        cell_backward = setcell(clf)
+        initial_state = cell_backward.zero_state(n_batch, tf.float32)
 
         outputs, _, _ = \
             rnn.static_bidirectional_rnn(cell_forward, cell_backward, x,
                                          dtype=tf.float32)
         V = _weight_variable([n_hidden*2, n_out])
+        '''
+        V = _weight_variable([n_hidden, n_out])
         c = _bias_variable([n_out])
         y = tf.matmul(outputs[-1], V) + c
 
@@ -129,10 +136,18 @@ class Network:
         return gamma * (x - mean) / tf.sqrt(var + eps) + beta
 
 class Stock:
-    def __init__(self, read_data, isStdmode=False):
+    def __init__(self, read_data, isStdmode=IS_STD_MODE, isUpdownratiomode=IS_UPDOWNRATIO_MODE):
         self.isStdmode = isStdmode
-        codes = read_data["証券コード"].values
-        self.code = codes[0]
+        try:
+            codes = read_data["証券コード"].values
+            self.code = codes[0]
+        except KeyError: # 株以外のデータをテストデータとして使用するとき
+            print("KeyError: DEBUG_MODE")
+            global INPUT_ITEMS
+            global OUTPUT_ITEMS
+            INPUT_ITEMS=['0']
+            OUTPUT_ITEMS=['0']
+            self.code = ANALYSIS_CODE
         self.data_std_info = pd.DataFrame(columns=["item", "mean", "std"])
         data = read_data[INPUT_ITEMS]
 
@@ -145,6 +160,20 @@ class Stock:
                 self.data[str] = (ary - ary.mean()) / ary.std()
                 std_info = pd.Series([str, ary.mean(), ary.std()], index=self.data_std_info.columns)
                 self.data_std_info = self.data_std_info.append(std_info, ignore_index=True)
+
+        if isUpdownratiomode:
+            for str in INPUT_ITEMS:
+                w_ary = np.copy(data[str].values)
+                ary = []
+                for i in range(len(w_ary)):
+                    if i == 0:
+                        continue
+                    if i == 1:
+                        ary.append(1)
+                        ary.append(w_ary[i-1] / w_ary[i])
+                    if i > 1:
+                        ary.append(w_ary[i-1] / w_ary[i])
+                self.data[str] = ary
 
     def unit(self, unit):
         x = np.array([[[]]])
@@ -172,17 +201,26 @@ class Stock:
                 data_unstd = np.copy(self.data)
             else:
                 data_unstd = np.copy(data)
-
-            for i, str in zip(range(len(INPUT_ITEMS)), INPUT_ITEMS):
-                df = self.data_std_info[self.data_std_info["item"] == str]
-                data_unstd[:,i] = data_unstd[:,i] * df['std'].values + df['mean'].values
-
+            if len(INPUT_ITEMS) == 1:
+                for i, item in zip(range(len(INPUT_ITEMS)), INPUT_ITEMS):
+                    df = self.data_std_info[self.data_std_info["item"] == str(item)]
+                    data_unstd[:] = data_unstd[:] * df['std'].values + df['mean'].values
+            else:
+                # 未実装
+                return None
             return data_unstd
         else:
             return data
 
+    # def convertupdownratio(self, ary):
+
+
     def get_index(self, item_name):
-        return INPUT_ITEMS.index(item_name)
+        if len(item_name) == 1:
+            return INPUT_ITEMS.index(item_name[0])
+        else:
+            # 未実装
+            return None
 
 
 class StockController:
@@ -198,7 +236,7 @@ class StockController:
         for file in files:
             read_data = pd.read_csv(file)
             if (len(read_data.index) != 0):
-                stock = Stock(read_data)
+                stock = Stock(read_data, isUpdownratiomode=False)
                 self.stockdata.append(stock)
             pbar.update(1)
         pbar.close()
@@ -269,16 +307,16 @@ class StockController:
             if stock_obj.code == code:
                 return stock_obj
 
-def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con):
+def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con, name=""):
     # 将来的には関数化できるよう、引数っぽいものはここに全部定義しておく
     def save_pred_graph():
         # test
         stock_obj = stock_con.get_data(code=ANALYSIS_CODE)
-        original = stock_obj.unstd(stock_obj.data.values)
+        original = stock_obj.data.values
         Z = original[:unit].reshape(1, unit, n_in)
         predicted = []
 
-        for i in range(unit):
+        for i in range(len(original) - unit):
             z_ = Z[-1:]
             y_ = y.eval(session=sess, feed_dict={
                 x: Z[-1:],
@@ -295,9 +333,9 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
 
         predicted = np.array(predicted)
         predicted = stock_obj.unstd(predicted)
-        original_endval = original[:, stock_obj.get_index("終値")]
-        teachdata_endval = original[:unit, stock_obj.get_index("終値")]
-        predict_endval = np.append(teachdata_endval, predicted[:, stock_obj.get_index("終値")], axis=0)
+        original_endval = stock_obj.unstd()
+        teachdata_endval = original_endval[:unit, stock_obj.get_index(INPUT_ITEMS)]
+        predict_endval = np.append(teachdata_endval, predicted[:, stock_obj.get_index(INPUT_ITEMS)], axis=0)
 
         plt.rc('font', family='serif')
         plt.figure()
@@ -321,13 +359,13 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
         saver1.save(sess, save_path)
 
     def get_filename():
-        return "loss" + str(round(val_loss,3)) + "epoch" + str(epoch) + "★UNIT:" + str(unit) + "-HID:" + str(n_hidden) + "-lr:" + str(learning_rate) + "-clf:" + clf + "-layer:" + str(layer)
+        return name + "loss" + str(round(val_loss,3)) + "epoch" + str(epoch) + "★UNIT:" + str(unit) + "-HID:" + str(n_hidden) + "-lr:" + str(learning_rate) + "-clf:" + clf + "-layer:" + str(layer)
 
     if not os.path.isdir(GRAPH_PATH):
         os.mkdir(GRAPH_PATH)
         os.mkdir(GRAPH_PATH + "loss/")
         os.mkdir(GRAPH_PATH + "pred/")
-    test_ratio = 0.9
+    test_ratio = 0.7
     history = {
         'val_loss': []
     }
@@ -335,7 +373,7 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
     if len(stock_con.stockdata) == 0:
         #初回だけデータロード
         stock_con.load()
-        stock_con.search_high_cor(cor=0.5, code=ANALYSIS_CODE, unit=unit)
+        # stock_con.search_high_cor(cor=0.5, code=ANALYSIS_CODE, unit=unit)
 
     X, Y = stock_con.unit_data(unit)
 
@@ -361,6 +399,7 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
     init = tf.global_variables_initializer()
     saver1 = tf.train.Saver()
     sess = tf.Session()
+    tf.summary.FileWriter(LOG_PATH, sess.graph)
     sess.run(init)
 
     n_batches = N_train // batch_size
@@ -384,7 +423,7 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
             x: X_validation,
             t: Y_validation,
             n_batch: N_validation,
-            isTraining : False
+            isTraining : True
         })
 
         history['val_loss'].append(val_loss)
@@ -409,12 +448,12 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
 
 if __name__ == '__main__':
 
-    unit = [50]
-    learning_rate = [0.001]
-    n_hidden = [400]
-    classifier = ["LSTM"]
-    layer = [3]
-    epochs = 500000
+    unit = [100]
+    learning_rate = [0.01]
+    n_hidden = [50]
+    classifier = ["GRU", "LSTM"]
+    layer = [1, 2]
+    epochs = 1
     stock_con = StockController()
     for un in unit:
         for lr in learning_rate:
@@ -426,6 +465,6 @@ if __name__ == '__main__':
                             n_hidden=hid, \
                             epochs=epochs, \
                             clf=clf, \
-                            batch_size=40, \
+                            batch_size=50, \
                             layer=ly, \
                             stock_con=stock_con)
