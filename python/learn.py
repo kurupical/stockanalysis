@@ -11,6 +11,7 @@ import common
 import random
 import matplotlib.pyplot as plt
 import time
+import copy
 
 from tensorflow.contrib import rnn
 from tqdm import tqdm
@@ -148,18 +149,14 @@ class Stock:
             INPUT_ITEMS=['0']
             OUTPUT_ITEMS=['0']
             self.code = ANALYSIS_CODE
-        self.data_std_info = pd.DataFrame(columns=["item", "mean", "std"])
         data = read_data[INPUT_ITEMS]
 
         # 標準化データ(平均=0,標準偏差=1)
         self.data = data
 
         if isStdmode:
-            for str in INPUT_ITEMS:
-                ary = np.copy(data[str].values)
-                self.data[str] = (ary - ary.mean()) / ary.std()
-                std_info = pd.Series([str, ary.mean(), ary.std()], index=self.data_std_info.columns)
-                self.data_std_info = self.data_std_info.append(std_info, ignore_index=True)
+            self.stdconv = StdConverter(self.data)
+            self.data = self.stdconv.data_std
 
         if isUpdownratiomode:
             for str in INPUT_ITEMS:
@@ -195,25 +192,7 @@ class Stock:
                 y = np.concatenate((y, np.array(target).reshape(len(data), len(target[0]))), axis=0)
         return x, y
 
-    def unstd(self, data=None):
-        if self.isStdmode:
-            if data is None:
-                data_unstd = np.copy(self.data)
-            else:
-                data_unstd = np.copy(data)
-            if len(INPUT_ITEMS) == 1:
-                for i, item in zip(range(len(INPUT_ITEMS)), INPUT_ITEMS):
-                    df = self.data_std_info[self.data_std_info["item"] == str(item)]
-                    data_unstd[:] = data_unstd[:] * df['std'].values + df['mean'].values
-            else:
-                # 未実装
-                return None
-            return data_unstd
-        else:
-            return data
-
     # def convertupdownratio(self, ary):
-
 
     def get_index(self, item_name):
         if len(item_name) == 1:
@@ -307,6 +286,57 @@ class StockController:
             if stock_obj.code == code:
                 return stock_obj
 
+class StdConverter:
+    '''
+        データ群の標準化、標準化戻しを行う
+        attribute
+            numpy/pandas data : 標準化対象のデータ
+            pandas _std_info : dataの配列ごとの平均、標準偏差を格納
+    '''
+    def __init__(self, data):
+        self.data = data
+        self.data_type = type(data)
+
+        self.std(self.data)
+
+    def std(self, data=None):
+        self.data_std = data
+        self._std_info = pd.DataFrame()
+
+        # numpy/pandas
+        if type(data) == type(pd.DataFrame()):
+            obj_type = "pd"
+            self.length = len(data.columns)
+            data = data.values
+        elif type(data) == type(np.array([[]])):
+            obj_type = "np"
+            self.length = len(data[0])
+            data = data
+
+        for i in range(self.length):
+            ary = np.copy(data[:,i])
+            ary_std = (ary - ary.mean()) / ary.std()
+            if obj_type == "pd":
+                self.data_std.iloc[:, i] = ary_std
+            elif obj_type == "np":
+                self.data_std[:, i] = ary_std
+            std_info = pd.Series([i, ary.mean(), ary.std()], index=['item' ,'mean' ,'std'])
+            self._std_info = self._std_info.append(std_info, ignore_index=True)
+
+    def unstd(self, data=None):
+        # numpy/pandas
+        if type(data) == type(pd.DataFrame()):
+            data = data.values
+        elif type(data) == type(np.array([[]])):
+            data = data
+
+        data_unstd = np.copy(data)
+        for i in range(self.length):
+            df = self._std_info[self._std_info["item"] == i]
+            data_unstd[:] = data_unstd[:] * df['std'].values + df['mean'].values
+        return data_unstd
+
+
 def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con, name=""):
     # 将来的には関数化できるよう、引数っぽいものはここに全部定義しておく
     def save_pred_graph():
@@ -316,6 +346,7 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
         Z = original[:unit].reshape(1, unit, n_in)
         predicted = []
 
+        stdconv = copy.deepcopy(stock_obj.stdconv)
         for i in range(len(original) - unit):
             z_ = Z[-1:]
             y_ = y.eval(session=sess, feed_dict={
@@ -324,16 +355,25 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
             })
 
             seq = np.concatenate(
-                (z_.reshape(unit, n_in)[1:], y_.reshape(1, n_in)), axis=0)\
-                .reshape(1, unit, n_in)
-
-            # Z = np.append(Z, seq, axis=0)
-            Z = seq
+                (z_.reshape(unit, n_in)[1:], y_.reshape(1, n_in)), axis=0)
+            '''
+            # 標準化を元に戻して、再度標準化する
+            seq = stdconv.unstd(seq)
+            stdconv = StdConverter(seq)
+            seq = stdconv.data_std
+            '''
             predicted.append(y_.reshape(-1))
+            seq = seq.reshape(-1, unit, n_in)
+
+            Z = np.copy(seq)
+
+        if stock_obj.isStdmode:
+            original_endval = stock_obj.stdconv.unstd(original)
+        else:
+            original_endval = stock_obj.data.values
 
         predicted = np.array(predicted)
-        predicted = stock_obj.unstd(predicted)
-        original_endval = stock_obj.unstd()
+        predicted = stock_obj.stdconv.unstd(predicted)
         teachdata_endval = original_endval[:unit, stock_obj.get_index(INPUT_ITEMS)]
         predict_endval = np.append(teachdata_endval, predicted[:, stock_obj.get_index(INPUT_ITEMS)], axis=0)
 
@@ -448,12 +488,12 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
 
 if __name__ == '__main__':
 
-    unit = [100]
+    unit = [50, 100]
     learning_rate = [0.01]
-    n_hidden = [50]
+    n_hidden = [50, 100]
     classifier = ["GRU", "LSTM"]
     layer = [1, 2]
-    epochs = 1
+    epochs = 150000
     stock_con = StockController()
     for un in unit:
         for lr in learning_rate:
