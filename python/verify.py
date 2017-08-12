@@ -19,6 +19,7 @@ def divive_sequence(x):
 
 def calc_cor(x):
     cor = np.corrcoef(x)
+    cor = np.round(cor, 3)
     return cor
 
 def calc_cor_ave(x):
@@ -26,7 +27,7 @@ def calc_cor_ave(x):
     cor_total = 0
     for i in range(len(x)):
         for k in range(len(x)):
-            if i != k:
+            if i != k and not math.isnan(x[i,k]):
                 count += 1
                 cor_total += x[i,k]
 
@@ -73,6 +74,23 @@ def random_ndim_func(dim=None, name="nfunc_data.csv"):
     # テストデータ出力
     df = pd.DataFrame(y)
     df.to_csv(name, index=False)
+    cor_ave_total = 0
+    for i in range(step):
+        f = make_func()
+        x = np.arange(SIZE/(-200), SIZE/200, 0.01)
+        y = f(x)
+        div_y = divive_sequence(y)
+        cor = calc_cor(div_y)
+        cor_ave_total += calc_cor_ave(cor)
+
+    # テストデータ出力
+    df = pd.DataFrame(y)
+    df.to_csv('test_' + str(dim) + 'dim-COR=' + str(round(calc_cor_ave(cor),3)) + '.csv')
+
+    cor_ave = cor_ave_total / step
+    print ("dim=" + str(dim))
+    print ("cor_ave=" + str(round(cor_ave,3)))
+    return ["dim=" + str(dim) + "func", round(cor_ave,3)]
 
 def stock_func():
     ary = []
@@ -89,3 +107,47 @@ def stock_func():
             ary.append([stock_obj.code, round(cor_ave,3)])
     print("stock_cor_avg:" , str(len(stock_con.stockdata)))
     return ary
+
+def func_to_csv():
+    cor_ary = []
+    cor_ary.append(root_x_func())
+    w_ary = stock_func()
+    for i in range(len(w_ary)):
+        cor_ary.append(w_ary[i])
+    cor_ary.append(random_ndim_func(dim=2))
+    cor_ary.append(random_ndim_func(dim=3))
+    cor_ary.append(random_ndim_func(dim=4))
+    for i in range(len(cor_ary)):
+        print(cor_ary[i])
+
+    df = pd.DataFrame(cor_ary)
+    df.to_csv('result.csv')
+
+def verify_cor(cor=None, code=None, unit=100):
+    stock_con = StockController()
+    stock_con.load()
+    # 検索したい条件を記述
+    if cor != None:
+        stock_con.search_high_cor(cor=cor, code=code, unit=unit)
+
+    ary = []
+    for stock_obj in stock_con.stockdata:
+        if not stock_obj.code == code:
+            ary.append(stock_obj.data.values[-unit:].reshape(-1))
+
+    ary = np.array(ary)
+    cor_ary = calc_cor(ary)
+    cor_ave = calc_cor_ave(cor_ary)
+
+    print("\n\n\n\n\n\n\n\n")
+    print("***************************************")
+    print("code=", str(code))
+    print("condition: cor>", str(cor))
+    print("cor:")
+    print(cor_ary)
+    print("cor_ave:", str(cor_ave))
+    print("***************************************")
+
+if __name__ == '__main__':
+    # 動かしたいメソッドを記述
+    verify_cor(cor=0.6, code=1301)
