@@ -22,14 +22,18 @@ def calc_cor(x):
     cor = np.round(cor, 3)
     return cor
 
-def calc_cor_ave(x):
+def calc_cor_ave(x, abs_mode=True):
     count = 0
     cor_total = 0
     for i in range(len(x)):
         for k in range(len(x)):
             if i != k and not math.isnan(x[i,k]):
                 count += 1
-                cor_total += x[i,k]
+                if abs_mode:
+                    cor = abs(x[i,k])
+                else:
+                    cor = x[i,k]
+                cor_total += cor
 
     coef_ave = cor_total / count
     return coef_ave

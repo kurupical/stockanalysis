@@ -96,7 +96,7 @@ def run():
 
     # 銘柄ごとにデータをマージ(株式情報もくっつける)
     for code in codes:
-        input_path = DATASET_PATH + "stock_work/" + code + "201[5-7]_utf8.csv" #3年分を分析
+        input_path = DATASET_PATH + "stock_work/" + code + "201[3-7]_utf8.csv" #3年分を分析
         output_path = DATASET_PATH + "stock_analysis/" + code + ".csv"
 
         files = glob.glob(input_path)

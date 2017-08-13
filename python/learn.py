@@ -30,7 +30,7 @@ LOG_PATH = "../log/"
 # OUTPUT_ITEMで出力する項目を先頭に記述
 INPUT_ITEMS = ["終値"]
 OUTPUT_ITEMS = ["終値"]
-ANALYSIS_CODE = 3597
+ANALYSIS_CODE = 1301
 LEARNING_RATE = 0.001
 UNIT = 100
 TEST_EPOCHS = 500
@@ -109,12 +109,9 @@ class Network:
                                          dtype=tf.float32)
         V = _weight_variable([n_hidden*2, n_out])
         '''
-        V = _weight_variable([n_hidden, n_out])
-        c = _bias_variable([n_out])
-        y = tf.matmul(outputs[-1], V) + c
 
-        if isTraining:
-            y = self.batch_normalization([n_hidden], y)
+        #if isTraining:
+        #    y = self.batch_normalization([n_hidden], y)
 
         return y
 
@@ -238,15 +235,16 @@ class StockController:
         pbar = tqdm(total=len(self.stockdata))
         for stock_obj in self.stockdata:
             if stock_obj.code == code:
+                stock_obj.data = stock_obj.data[-unit*2:]
                 ary.append(stock_obj)
-            else:
-                if len(stock_obj.data) > unit*2:
-                    y = stock_obj.data[-unit*2:-unit]
-                    xy_cor = np.corrcoef(x.values.reshape(-1), y.values.reshape(-1))[0][1]
-                    if abs(xy_cor) > cor:
-                        ary.append(stock_obj)
-                        print("証券コード:", stock_obj.code, " 相関係数:", xy_cor)
-                pbar.update(1)
+            if len(stock_obj.data) > unit*2:
+                y = stock_obj.data[-unit*2:-unit]
+                xy_cor = np.corrcoef(x.values.reshape(-1), y.values.reshape(-1))[0][1]
+                if abs(xy_cor) > abs(cor):
+                    stock_obj.data = stock_obj.data[-unit*2:]
+                    ary.append(stock_obj)
+                    print("証券コード:", stock_obj.code, " 相関係数:", xy_cor)
+            pbar.update(1)
         pbar.close()
         self.stockdata = ary
         print("search_high_cor 結果:\n")
@@ -413,7 +411,7 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
     if len(stock_con.stockdata) == 0:
         #初回だけデータロード
         stock_con.load()
-        # stock_con.search_high_cor(cor=0.5, code=ANALYSIS_CODE, unit=unit)
+        stock_con.search_high_cor(cor=0.6, code=ANALYSIS_CODE, unit=unit)
 
     X, Y = stock_con.unit_data(unit)
 
@@ -488,12 +486,12 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
 
 if __name__ == '__main__':
 
-    unit = [50, 100]
-    learning_rate = [0.01]
-    n_hidden = [50, 100]
-    classifier = ["GRU", "LSTM"]
-    layer = [1, 2]
-    epochs = 150000
+    unit = [100]
+    learning_rate = [0.001]
+    n_hidden = [30]
+    classifier = ["GRU"]
+    layer = [1]
+    epochs = 20000
     stock_con = StockController()
     for un in unit:
         for lr in learning_rate:
