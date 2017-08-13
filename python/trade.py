@@ -1,5 +1,6 @@
 
 import learn
+import configparser
 MODEL_PATH = "../model/GNUexport/"
 
 class TradeController:
@@ -40,10 +41,26 @@ class Predict:
     def __init__(self, path_ary):
         self.network_ary = []
         for path in path_ary:
-            # パラメータファイルを読む処理
-            ~~~
-            
-            network = learn.Network()
+            # パラメータファイルを読む
+            config = configparser.ConfigParser()
+            config.read('test.ini')
+            unit = int(config['param']['unit'])
+            n_in = int(config['param']['n_in'])
+            n_out = int(config['param']['n_out'])
+            n_hidden = int(config['param']['n_hidden'])
+            clf = config['param']['clf']
+            layer = int(config['param']['layer'])
+            learning_rate = float(config['param']['learning_rate'])
+
+
+            network = learn.Network(\
+                unit=unit,
+                n_in=n_in,
+                n_out=n_out,
+                n_hidden=n_hidden,
+                clf=clf,
+                layer=layer,
+                learning_rate=learning_rate)
             network.load(path)
             self.network_ary.append(network)
 
@@ -59,11 +76,11 @@ class Chart:
 if __name__ == "__main__":
     print("making now!")
 
-    path_ary = [MODEL_PATH + "loss0.086epoch99★UNIT:100-HID:30-lr:0.001-clf:GRU-layer:1.ckpt"]
+    path_ary = [MODEL_PATH + "loss0.03epoch99★UNIT:100-HID:30-lr:0.001-clf:GRU-layer:1.ckpt"]
     #test
     predict = Predict(path_ary=path_ary)
     #test
-    stock_con = StockController()
+    stock_con = learn.StockController()
     stock_con.load()
 
     for stock_obj in stock_con.stockdata:

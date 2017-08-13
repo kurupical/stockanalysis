@@ -45,23 +45,38 @@ IS_UPDOWNRATIO_MODE = False
 
 
 class Network:
-    def __init__(self, unit, n_in, n_out):
+    def __init__(self, unit, n_hidden, n_in, n_out, clf, layer, learning_rate):
         '''
             clf : ネットワークの種類(RNN/LSTM/GRU)
         '''
         # save()で使うため、引数は保存しておく
         self.unit = unit
+        self.n_hidden = n_hidden
         self.n_in = n_in
         self.n_out = n_out
+        self.clf = clf
+        self.layer = layer
+        self.learning_rate = learning_rate
 
+        # placeholderの宣言
         self.x = tf.placeholder(tf.float32, shape=[None, unit, n_in])
         self.t = tf.placeholder(tf.float32, shape=[None, n_out])
         self.isTraining = tf.placeholder(tf.bool)
         self.n_batch = tf.placeholder(tf.int32, [])
+
+        # モデル、誤差関数、学習アルゴリズムの定義
+        self.y = self._inference(x=self.x, clf=clf, n_batch=self.n_batch, maxlen=unit, n_hidden=n_hidden, n_out=n_out, n_in=n_in, layer=layer)
+        self.ls = self._loss(self.y, self.t)
+        self.train_step = self._training(self.ls, learning_rate=learning_rate)
+
+        self.saver = tf.train.Saver()
         self.sess = tf.Session()
+        init = tf.global_variables_initializer()
+        self.sess.run(init)
         tf.summary.FileWriter(LOG_PATH, self.sess.graph)
 
-    def inference(self, x, clf, n_batch=None, maxlen=None, n_hidden=None, n_out=None, n_in=None, layer=None, isTraining=False):
+
+    def _inference(self, x, clf, n_batch=None, maxlen=None, n_hidden=None, n_out=None, n_in=None, layer=None, isTraining=False):
         # Network全体の設定を行い、モデルの出力・予想結果をかえす
         def _weight_variable(shape):
             initial = tf.truncated_normal(shape, stddev=0.01)
@@ -94,7 +109,8 @@ class Network:
 
         state = initial_state
         outputs = []
-        with tf.variable_scope(clf + str(random.random())):
+        #with tf.variable_scope(clf + str(random.random())):
+        with tf.variable_scope(clf):
             for t in range(maxlen):
                 if t > 0:
                     tf.get_variable_scope().reuse_variables()
@@ -126,11 +142,11 @@ class Network:
 
         return y
 
-    def loss(self, y, t):
+    def _loss(self, y, t):
         mse = tf.reduce_mean(tf.square(y - t))
         return mse
 
-    def training(self, loss, learning_rate=LEARNING_RATE, beta1=0.9, beta2=0.999):
+    def _training(self, loss, learning_rate=LEARNING_RATE, beta1=0.9, beta2=0.999):
         optimizer = \
             tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2)
 
@@ -146,22 +162,21 @@ class Network:
 
     def save(self, path):
         #save_sessionと置き換える
-        saver = tf.train.Saver()
-        saver.save(self.sess, path)
+        self.saver.save(self.sess, path)
         # configファイルを作成 https://docs.python.jp/3/library/configparser.html
         config = configparser.ConfigParser()
-        config['param'] = { 'unit':  self.unit,
-                            'n_in':  self.n_in,
-                            'n_out': self.n_out }
+        config['param'] = { 'unit':             self.unit,
+                            'n_hidden':         self.n_hidden,
+                            'n_in':             self.n_in,
+                            'n_out':            self.n_out,
+                            'clf':              self.clf,
+                            'layer':            self.layer,
+                            'learning_rate':    self.learning_rate }
         with open('test.ini', 'w') as configfile:
             config.write(configfile)
 
-        print("making now")
-
     def load(self, path):
-        saver = tf.train.Saver()
-        with tf.Session as self.sess:
-            saver.restore(self.sess, path)
+        self.saver.restore(self.sess, path)
 
 
 
@@ -379,7 +394,7 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
         stdconv = copy.deepcopy(stock_obj.stdconv)
         for i in range(len(original) - unit):
             z_ = Z[-1:]
-            y_ = y.eval(session=network.sess, feed_dict={
+            y_ = network.y.eval(session=network.sess, feed_dict={
                 network.x: Z[-1:],
                 network.n_batch: 1
             })
@@ -452,17 +467,10 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
     N_train = int(len(X) * test_ratio)
     N_validation = len(X) - N_train
 
-    network = Network(unit=unit, n_in=n_in, n_out=n_out)
+    network = Network(unit=unit, n_hidden=n_hidden, n_in=n_in, n_out=n_out, clf=clf, layer=layer, learning_rate=learning_rate)
 
     X_train, X_validation, Y_train, Y_validation = \
         train_test_split(X, Y, test_size=N_validation)
-
-    y = network.inference(network.x, clf=clf, n_batch=network.n_batch, maxlen=unit, n_hidden=n_hidden, n_out=n_out, n_in=n_in, layer=layer)
-    ls = network.loss(y, network.t)
-    train_step = network.training(ls, learning_rate=learning_rate)
-
-    init = tf.global_variables_initializer()
-    network.sess.run(init)
 
     n_batches = N_train // batch_size
 
@@ -474,14 +482,14 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
         for i in range(n_batches):
             start = i * batch_size
             end = start + batch_size
-            network.sess.run(train_step, feed_dict={
+            network.sess.run(network.train_step, feed_dict={
                 network.x : X_[start:end],
                 network.t : Y_[start:end],
                 network.n_batch: batch_size,
                 network.isTraining : True
             })
 
-        val_loss = ls.eval(session=network.sess, feed_dict={
+        val_loss = network.ls.eval(session=network.sess, feed_dict={
             network.x: X_validation,
             network.t: Y_validation,
             network.n_batch: N_validation,
