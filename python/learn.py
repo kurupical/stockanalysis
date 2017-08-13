@@ -12,6 +12,7 @@ import random
 import matplotlib.pyplot as plt
 import time
 import copy
+import configparser
 
 from tensorflow.contrib import rnn
 from tqdm import tqdm
@@ -44,13 +45,23 @@ IS_UPDOWNRATIO_MODE = False
 
 
 class Network:
-    def __init__(self, clf):
+    def __init__(self, unit, n_in, n_out):
         '''
             clf : ネットワークの種類(RNN/LSTM/GRU)
         '''
-        self.clf = clf
+        # save()で使うため、引数は保存しておく
+        self.unit = unit
+        self.n_in = n_in
+        self.n_out = n_out
 
-    def inference(self, x, n_batch=None, maxlen=None, n_hidden=None, n_out=None, n_in=None, layer=None, isTraining=False):
+        self.x = tf.placeholder(tf.float32, shape=[None, unit, n_in])
+        self.t = tf.placeholder(tf.float32, shape=[None, n_out])
+        self.isTraining = tf.placeholder(tf.bool)
+        self.n_batch = tf.placeholder(tf.int32, [])
+        self.sess = tf.Session()
+        tf.summary.FileWriter(LOG_PATH, self.sess.graph)
+
+    def inference(self, x, clf, n_batch=None, maxlen=None, n_hidden=None, n_out=None, n_in=None, layer=None, isTraining=False):
         # Network全体の設定を行い、モデルの出力・予想結果をかえす
         def _weight_variable(shape):
             initial = tf.truncated_normal(shape, stddev=0.01)
@@ -78,12 +89,12 @@ class Network:
             return multi_cell
 
         # モデルの設定
-        cell = setcell(self.clf)
+        cell = setcell(clf)
         initial_state = cell.zero_state(n_batch, tf.float32)
 
         state = initial_state
         outputs = []
-        with tf.variable_scope(self.clf + str(random.random())):
+        with tf.variable_scope(clf + str(random.random())):
             for t in range(maxlen):
                 if t > 0:
                     tf.get_variable_scope().reuse_variables()
@@ -132,6 +143,27 @@ class Network:
         gamma = tf.Variable(tf.ones(shape))
         mean, var = tf.nn.moments(x, [0])
         return gamma * (x - mean) / tf.sqrt(var + eps) + beta
+
+    def save(self, path):
+        #save_sessionと置き換える
+        saver = tf.train.Saver()
+        saver.save(self.sess, path)
+        # configファイルを作成 https://docs.python.jp/3/library/configparser.html
+        config = configparser.ConfigParser()
+        config['param'] = { 'unit':  self.unit,
+                            'n_in':  self.n_in,
+                            'n_out': self.n_out }
+        with open('test.ini', 'w') as configfile:
+            config.write(configfile)
+
+        print("making now")
+
+    def load(self, path):
+        saver = tf.train.Saver()
+        with tf.Session as self.sess:
+            saver.restore(self.sess, path)
+
+
 
 class Stock:
     def __init__(self, read_data, isStdmode=IS_STD_MODE, isUpdownratiomode=IS_UPDOWNRATIO_MODE):
@@ -347,9 +379,9 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
         stdconv = copy.deepcopy(stock_obj.stdconv)
         for i in range(len(original) - unit):
             z_ = Z[-1:]
-            y_ = y.eval(session=sess, feed_dict={
-                x: Z[-1:],
-                n_batch: 1
+            y_ = y.eval(session=network.sess, feed_dict={
+                network.x: Z[-1:],
+                network.n_batch: 1
             })
 
             seq = np.concatenate(
@@ -394,7 +426,7 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
 
     def save_session():
         save_path = MODEL_PATH + get_filename() + ".ckpt"
-        saver1.save(sess, save_path)
+        network.save(save_path)
 
     def get_filename():
         return name + "loss" + str(round(val_loss,3)) + "epoch" + str(epoch) + "★UNIT:" + str(unit) + "-HID:" + str(n_hidden) + "-lr:" + str(learning_rate) + "-clf:" + clf + "-layer:" + str(layer)
@@ -415,30 +447,22 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
 
     X, Y = stock_con.unit_data(unit)
 
-    network = Network(clf)
-
     n_in = len(X[0,0])
     n_out = len(Y[0])
     N_train = int(len(X) * test_ratio)
     N_validation = len(X) - N_train
 
+    network = Network(unit=unit, n_in=n_in, n_out=n_out)
+
     X_train, X_validation, Y_train, Y_validation = \
         train_test_split(X, Y, test_size=N_validation)
 
-    x = tf.placeholder(tf.float32, shape=[None, unit, n_in])
-    t = tf.placeholder(tf.float32, shape=[None, n_out])
-    isTraining = tf.placeholder(tf.bool)
-    n_batch = tf.placeholder(tf.int32, [])
-
-    y = network.inference(x, n_batch=n_batch, maxlen=unit, n_hidden=n_hidden, n_out=n_out, n_in=n_in, layer=layer)
-    ls = network.loss(y, t)
+    y = network.inference(network.x, clf=clf, n_batch=network.n_batch, maxlen=unit, n_hidden=n_hidden, n_out=n_out, n_in=n_in, layer=layer)
+    ls = network.loss(y, network.t)
     train_step = network.training(ls, learning_rate=learning_rate)
 
     init = tf.global_variables_initializer()
-    saver1 = tf.train.Saver()
-    sess = tf.Session()
-    tf.summary.FileWriter(LOG_PATH, sess.graph)
-    sess.run(init)
+    network.sess.run(init)
 
     n_batches = N_train // batch_size
 
@@ -450,18 +474,18 @@ def run(unit, epochs, n_hidden, learning_rate, batch_size, clf, layer, stock_con
         for i in range(n_batches):
             start = i * batch_size
             end = start + batch_size
-            sess.run(train_step, feed_dict={
-                x : X_[start:end],
-                t : Y_[start:end],
-                n_batch: batch_size,
-                isTraining : True
+            network.sess.run(train_step, feed_dict={
+                network.x : X_[start:end],
+                network.t : Y_[start:end],
+                network.n_batch: batch_size,
+                network.isTraining : True
             })
 
-        val_loss = ls.eval(session=sess, feed_dict={
-            x: X_validation,
-            t: Y_validation,
-            n_batch: N_validation,
-            isTraining : True
+        val_loss = ls.eval(session=network.sess, feed_dict={
+            network.x: X_validation,
+            network.t: Y_validation,
+            network.n_batch: N_validation,
+            network.isTraining : True
         })
 
         history['val_loss'].append(val_loss)
@@ -491,7 +515,7 @@ if __name__ == '__main__':
     n_hidden = [30]
     classifier = ["GRU"]
     layer = [1]
-    epochs = 20000
+    epochs = 100
     stock_con = StockController()
     for un in unit:
         for lr in learning_rate:
