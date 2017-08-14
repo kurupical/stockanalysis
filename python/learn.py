@@ -45,7 +45,7 @@ IS_UPDOWNRATIO_MODE = False
 
 
 class Network:
-    def __init__(self, unit, n_hidden, n_in, n_out, clf, layer, learning_rate):
+    def __init__(self, unit, n_hidden, n_in, n_out, clf, layer, learning_rate, key=None):
         '''
             clf : ネットワークの種類(RNN/LSTM/GRU)
         '''
@@ -57,6 +57,10 @@ class Network:
         self.clf = clf
         self.layer = layer
         self.learning_rate = learning_rate
+        if key is None:
+            self.key = random.random()
+        else:
+            self.key = key
 
         # placeholderの宣言
         self.x = tf.placeholder(tf.float32, shape=[None, unit, n_in])
@@ -110,7 +114,7 @@ class Network:
         state = initial_state
         outputs = []
         #with tf.variable_scope(clf + str(random.random())):
-        with tf.variable_scope(clf):
+        with tf.variable_scope(clf, self.key):
             for t in range(maxlen):
                 if t > 0:
                     tf.get_variable_scope().reuse_variables()
@@ -171,7 +175,8 @@ class Network:
                             'n_out':            self.n_out,
                             'clf':              self.clf,
                             'layer':            self.layer,
-                            'learning_rate':    self.learning_rate }
+                            'learning_rate':    self.learning_rate,
+                            'key':              self.key }
         with open('test.ini', 'w') as configfile:
             config.write(configfile)
 
@@ -193,6 +198,7 @@ class Stock:
             INPUT_ITEMS=['0']
             OUTPUT_ITEMS=['0']
             self.code = ANALYSIS_CODE
+        self.all_data = read_data
         data = read_data[INPUT_ITEMS]
 
         # 標準化データ(平均=0,標準偏差=1)
@@ -215,6 +221,9 @@ class Stock:
                     if i > 1:
                         ary.append(w_ary[i-1] / w_ary[i])
                 self.data[str] = ary
+
+        for str in INPUT_ITEMS:
+            self.all_data[str] = self.data[str]
 
     def unit(self, unit):
         x = np.array([[[]]])
