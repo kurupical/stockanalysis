@@ -4,7 +4,7 @@ import configparser
 # stockanalysis_library
 import learn
 import common
-import trade_algorism
+import trade_algorithm
 MODEL_PATH = "../model/GNUexport/"
 
 class TradeController:
@@ -42,7 +42,9 @@ class Decider:
     def decide_trade(self, predict_term):
         # 売買を決定する
         self.predicter.predict(chart=self.chart, predict_term=predict_term)
-        trade_jugde = tradealgo(self.predictor)
+        trade_judge = []
+        for algo in self.tradealgo:
+            trade_judge.append(algo.judge())
         return trade_judge
 
 class Predicter:
@@ -76,6 +78,7 @@ class Predicter:
     def predict(self, chart, predict_term=30):
         self.original = chart.df_data['終値'].values
         self.predicted = []
+        self.chart = chart
         Z = self.original[:self.unit].reshape(1, self.unit, self.n_in)
         for network in self.network_ary:
             predicted = []
@@ -127,8 +130,10 @@ def test():
 
     path_ary = [MODEL_PATH + "loss0.033epoch99★UNIT:100-HID:30-lr:0.001-clf:GRU-layer:1.ckpt"]
     predicter = Predicter(path_ary=path_ary)
-    trade = Trade(code=1301, tradealgo=[1], predicter=predicter, stock_con=stock_con,date_to='2016/12/31')
+    tradealgo = [trade_algorithm.UpDown_Npercent(predicter, 10)]
+    trade = Trade(code=1301, tradealgo=tradealgo, predicter=predicter, stock_con=stock_con,date_to='2016/12/31')
     trade.trade()
+
 if __name__ == "__main__":
     print("making now!")
 
@@ -136,6 +141,3 @@ if __name__ == "__main__":
     stock_con.load()
     test()
     #test
-
-    for stock_obj in stock_con.stockdata:
-        chart = Chart(stock_obj.data)
