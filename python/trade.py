@@ -147,7 +147,7 @@ class Predicter:
         for path in path_ary:
             # パラメータファイルを読む
             config = configparser.ConfigParser()
-            config.read('test.ini')
+            config.read(path + "model.ini")
             self.unit = int(config['param']['unit'])
             self.n_in = int(config['param']['n_in'])
             self.n_out = int(config['param']['n_out'])
@@ -165,7 +165,7 @@ class Predicter:
                                     layer=self.layer,
                                     learning_rate=self.learning_rate,
                                     key=self.key)
-            network.load(path)
+            network.load(path + "model.ckpt")
             self.network_ary.append(network)
 
     def predict(self, chart, predict_term=30):
@@ -227,7 +227,7 @@ class Chart:
         return next
 
 def test():
-    path_ary = [MODEL_PATH + "loss0.033epoch99★UNIT:100-HID:30-lr:0.001-clf:GRU-layer:1.ckpt"]
+    path_ary = ["../model/1301single/"]
     predicter = Predicter(path_ary=path_ary)
     tradealgo = [trade_algorithm.UpDown_Npercent(predicter, 10)]
     trade = Trade(code=1301, tradealgo=tradealgo, predicter=predicter, stock_con=stock_con,date_to='2016/12/31')
