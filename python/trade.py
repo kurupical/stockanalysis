@@ -1,5 +1,6 @@
 # common_library
 import numpy as np
+import pandas as pd
 import configparser
 # stockanalysis_library
 import learn
@@ -18,32 +19,59 @@ class Trade:
     # チャート予測から株の売買までを行う
     def __init__(self, code, tradealgo, predicter, stock_con, date_from='1900/1/1', date_to='2099/12/31'):
         self.code = code
+        self.chart = Chart(code, stock_con, date_from, date_to)
         self.decider = \
-            Decider(code, tradealgo, predicter, stock_con, date_from, date_to)
-        self.holdstack = pd.DataFrame(columns=['date', 'amount', 'price', 'limit_price', 'stop_loss'])
-        self.record = pd.DataFrame(columns=['date', 'buysell', 'amount', 'price'])
+            Decider(code, tradealgo, predicter)
+        self.hold_id = 0
+        self.holdstack = pd.DataFrame()
+        self.record_id = 0
+        self.record = pd.DataFrame()
 
-    def trade(self):
-        self.decider.decide_trade(predict_term=30)
-        print("makng now!")
+    def buy(self, amount, limit_price, stop_loss):
+        '''
+        引数amountだけ株を買う。
+        指値limit_price, 逆指値stop_lossを設定する。
+        '''
+        next = self.chart.get_next()
+        # 保有銘柄数の更新
+        #DataFrameの初期設定+columnsの順番指定ー＞メモに残したらこのコメント消す
+        df = pd.DataFrame({ 'hold_id': self.hold_id,
+                            'date': next['日付'],
+                            'amount': amount,
+                            'price': next['始値'],
+                            'limit_price': limit_price,
+                            'stop_loss': stop_loss },
+                            columns= ['hold_id', 'date', 'amount', 'price', 'limit_price', 'stop_loss'])
+        self.holdstack = pd.concat([self.holdstack, df])
+        # 取引履歴の更新
+        df = pd.DataFrame({ 'record_id': self.record_id,
+                            'date': next['日付'],
+                            'buysell': "buy",
+                            'amount': amount,
+                            'price': next['始値']},
+                            columns=['record_id','date', 'buysell', 'amount', 'price'])
+        self.record = pd.concat([self.record, df])
 
-    def buy():
-        print("makng now!")
+        self.hold_id += 1
+        self.record_id += 1
 
-    def sell():
-        print("makng now!")
+    def sell(self, amount):
+        if self.holdstack['amount'].sum() < amonut:
+            print("cannot_sell: don't have stock to sell")
+        else:
+
+        print("making now!")
 
 class Decider:
     # 株の予測、意思決定を行う
-    def __init__(self, code, tradealgo, predicter, stock_con, date_from='1900/1/1', date_to='2099/12/31'):
+    def __init__(self, code, tradealgo, predicter):
         self.code = code
         self.tradealgo = tradealgo
         self.predicter = predicter
-        self.chart = Chart(code, stock_con, date_from, date_to)
 
-    def decide_trade(self, predict_term):
+    def decide_trade(self, predict_term, chart):
         # 売買を決定する
-        self.predicter.predict(chart=self.chart, predict_term=predict_term)
+        self.predicter.predict(chart=chart, predict_term=predict_term)
         trade_judge = []
         for algo in self.tradealgo:
             trade_judge.append(algo.judge())
@@ -118,23 +146,34 @@ class Chart:
         df = df[df['日付'] <= num_to]
         return df
 
-    def get_next(self):
-        # 翌営業日のデータを取得し、self.dataに格納
-        date_today = self.df_data.max(columns='日付')
-        df_after_tomorrow = self.df_all_data[self.all_data['日付'] > date_today]
-        date_tomorrow = df_after_tomorrow.min(columns='日付')
-        next = df_after_tomorrow[df_after_tomorrow['日付'] == date_tomorrow]
-
+    def forward(self):
+        '''
+        翌営業日のデータを取得し、self.dataに格納
+        '''
+        next = self.get_next()
         self.data = pd.concat([self.data, next])
 
+    def get_next(self):
+        '''
+        翌営業日のデータを返す
+        '''
+        date_today = max(self.df_data['日付'])
+        df_after_tomorrow = self.df_all_data[self.df_all_data['日付'] > date_today]
+        date_tomorrow = min(df_after_tomorrow['日付'])
+        next = df_after_tomorrow[df_after_tomorrow['日付'] == date_tomorrow]
+        return next
 
 def test():
-
-    path_ary = [MODEL_PATH + "loss0.033epoch99★UNIT:100-HID:30-lr:0.001-clf:GRU-layer:1.ckpt"]
+    path_ary = [MODEL_PATH + "loss0.089epoch99★UNIT:100-HID:30-lr:0.001-clf:GRU-layer:1.ckpt"]
     predicter = Predicter(path_ary=path_ary)
     tradealgo = [trade_algorithm.UpDown_Npercent(predicter, 10)]
     trade = Trade(code=1301, tradealgo=tradealgo, predicter=predicter, stock_con=stock_con,date_to='2016/12/31')
-    trade.trade()
+    judgement = trade.decider.decide_trade(predict_term=30, chart=trade.chart)
+    for judge, amount, limit_price, stop_loss in judgement:
+        if judge == "buy":
+            trade.buy(amount=amount, limit_price=limit_price, stop_loss=stop_loss)
+        if judge == "sell":
+            trade.sell(amount=amount)
 
 if __name__ == "__main__":
     print("making now!")

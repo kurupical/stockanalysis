@@ -30,7 +30,15 @@ class UpDown_Npercent:
 
         if buy - sell >= math.floor(total):
             judge = "buy"
+            amount = 100
+            limit_price = int(org_unstd[-1] * (1 + self.n_percent/100))
+            stop_loss = int(org_unstd[-1] * (1 - self.n_percent/100))
 
         if sell - buy >= math.floor(total):
             judge = "sell"
-        return judge
+            amount = 100
+            limit_price = 0
+            stop_loss = 0
+
+
+        return judge, amount, limit_price, stop_loss
