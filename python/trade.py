@@ -10,24 +10,84 @@ MODEL_PATH = "../model/GNUexport/"
 
 class TradeController:
     # 株の保有状況や利益などを管理する。
-    def __init__(self):
+    def __init__(self, init_money):
+        # status
+        self.money = init_money
+        self.holdstock = pd.DataFrame()
+        self.history = pd.DataFrame()
+        self.id = 0
+
+        self.trade_ary = []
         print("makng now!")
-    def _load_stock(self):
-        print("makng now!")
+
+    def add_trade(self,trade_obj):
+        self.trade_ary.append(trade_obj)
+
+    def forward_1day(self):
+        for trade_obj in self.trade_ary:
+            trade_obj.chart.forward_1day()
+
+    def trade(self):
+        for trade_obj in self.trade_ary:
+            # ---
+            # AssetManagementによる売買判定をここで
+            # ---
+            judgement = trade_obj.decide_trade(predict_term=30)
+            # ---
+            # amountの調整が必要ならここで
+            # ---
+            for judge, amount, limit_price, stop_loss in judgement:
+                if judge == "buy":
+                    df_holdstock, df_history = trade_obj.buy(id=self.id,
+                                                            amount=amount,
+                                                            limit_price=limit_price,
+                                                            stop_loss=stop_loss)
+                    self.money -= df_history['price']
+                    self.holdstock = pd.concat([self.holdstock, df_holdstock])
+                    self.trade_history = pd.concat([self.history, df_history])
+                    self.id += 1
+
+                if judge == "sell":
+                    df_history = trade_obj.sell(id=self.id, amount=amount)
+                    self.trade_history = pd.concat([self.history, df_history])
+                    self.money += df_history['price']
+                    self.id += 1
+                    self._unhold(self.holdstock, code=df_history['code'], amount=df_history['amount'])
+
+    def _unhold(self, code, amount):
+        '''
+        指定されたコードの指定された株数を減らす
+        (先入先出法)
+        '''
+        while True:
+            if amount <= 0:
+                break
+
+            min_id = min(self.holdstock[self.holdstock['code'] == code])
+            df_min_id = self.holdstock[self.holdstock['id'] == min_id]
+            if df_min_id['amount'] <= amount:
+                # 該当レコードを削除する
+                self.holdstock = self.holdstock[self.holdstock['code' != code]]
+                amount -= df_min_id['amount']
+            else:
+                # 該当レコードの株数を減らす
+                df_min_id['amount'] -= amount
+                self.holdstock[min_id] = df_min_id
+                amount = 0
 
 class Trade:
     # チャート予測から株の売買までを行う
+    # →不要な気がする。消すかも
     def __init__(self, code, tradealgo, predicter, stock_con, date_from='1900/1/1', date_to='2099/12/31'):
         self.code = code
         self.chart = Chart(code, stock_con, date_from, date_to)
         self.decider = \
             Decider(code, tradealgo, predicter)
-        self.hold_id = 0
-        self.holdstack = pd.DataFrame()
-        self.record_id = 0
-        self.record = pd.DataFrame()
 
-    def buy(self, amount, limit_price, stop_loss):
+    def decide_trade(self, predict_term):
+        return self.decider.decide_trade(predict_term=predict_term, chart=self.chart)
+
+    def buy(self, id, amount, limit_price, stop_loss):
         '''
         引数amountだけ株を買う。
         指値limit_price, 逆指値stop_lossを設定する。
@@ -35,32 +95,35 @@ class Trade:
         next = self.chart.get_next()
         # 保有銘柄数の更新
         #DataFrameの初期設定+columnsの順番指定ー＞メモに残したらこのコメント消す
-        df = pd.DataFrame({ 'hold_id': self.hold_id,
-                            'date': next['日付'],
-                            'amount': amount,
-                            'price': next['始値'],
-                            'limit_price': limit_price,
-                            'stop_loss': stop_loss },
-                            columns= ['hold_id', 'date', 'amount', 'price', 'limit_price', 'stop_loss'])
-        self.holdstack = pd.concat([self.holdstack, df])
+        df_hold = pd.DataFrame({ 'id': id,
+                                 'code': self.code,
+                                 'date': next['日付'],
+                                 'amount': amount,
+                                 'price': next['始値'],
+                                 'limit_price': limit_price,
+                                 'stop_loss': stop_loss },
+                                 columns= ['id', 'code', 'date', 'amount', 'price', 'limit_price', 'stop_loss'])
         # 取引履歴の更新
-        df = pd.DataFrame({ 'record_id': self.record_id,
-                            'date': next['日付'],
-                            'buysell': "buy",
-                            'amount': amount,
-                            'price': next['始値']},
-                            columns=['record_id','date', 'buysell', 'amount', 'price'])
-        self.record = pd.concat([self.record, df])
+        df_history = pd.DataFrame({ 'id': id,
+                                    'code': self.code,
+                                    'date': next['日付'],
+                                    'buysell': "buy",
+                                    'amount': amount,
+                                    'price': next['始値']},
+                                    columns=['id', 'code', 'date', 'buysell', 'amount', 'price'])
 
-        self.hold_id += 1
-        self.record_id += 1
+        return df_hold, df_history
 
     def sell(self, amount):
-        if self.holdstack['amount'].sum() < amonut:
-            print("cannot_sell: don't have stock to sell")
-        else:
-
-        print("making now!")
+        next = self.chart.get_next()
+        df_history = pd.DataFrame({ 'id': id,
+                                    'code': self.code,
+                                    'date': next['日付'],
+                                    'buysell': "sell",
+                                    'amount': amount,
+                                    'price': next['始値']},
+                                    columns=['id', 'code', 'date', 'buysell', 'amount', 'price'])
+        return df_history
 
 class Decider:
     # 株の予測、意思決定を行う
@@ -146,12 +209,12 @@ class Chart:
         df = df[df['日付'] <= num_to]
         return df
 
-    def forward(self):
+    def forward_1day(self):
         '''
         翌営業日のデータを取得し、self.dataに格納
         '''
         next = self.get_next()
-        self.data = pd.concat([self.data, next])
+        self.df_data = pd.concat([self.df_data, next])
 
     def get_next(self):
         '''
@@ -164,17 +227,23 @@ class Chart:
         return next
 
 def test():
-    path_ary = [MODEL_PATH + "loss0.089epoch99★UNIT:100-HID:30-lr:0.001-clf:GRU-layer:1.ckpt"]
+    path_ary = [MODEL_PATH + "loss0.033epoch99★UNIT:100-HID:30-lr:0.001-clf:GRU-layer:1.ckpt"]
     predicter = Predicter(path_ary=path_ary)
     tradealgo = [trade_algorithm.UpDown_Npercent(predicter, 10)]
     trade = Trade(code=1301, tradealgo=tradealgo, predicter=predicter, stock_con=stock_con,date_to='2016/12/31')
+    trade_con = TradeController(1000000)
+    trade_con.add_trade(trade)
+
+    trade_con.forward_1day()
+    trade_con.trade()
+    '''
     judgement = trade.decider.decide_trade(predict_term=30, chart=trade.chart)
     for judge, amount, limit_price, stop_loss in judgement:
         if judge == "buy":
             trade.buy(amount=amount, limit_price=limit_price, stop_loss=stop_loss)
         if judge == "sell":
             trade.sell(amount=amount)
-
+    '''
 if __name__ == "__main__":
     print("making now!")
 
