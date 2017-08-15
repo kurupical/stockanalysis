@@ -20,15 +20,17 @@ class Trade:
         self.code = code
         self.decider = \
             Decider(code, tradealgo, predicter, stock_con, date_from, date_to)
+        self.holdstack = pd.DataFrame(columns=['date', 'amount', 'price', 'limit_price', 'stop_loss'])
+        self.record = pd.DataFrame(columns=['date', 'buysell', 'amount', 'price'])
 
     def trade(self):
         self.decider.decide_trade(predict_term=30)
         print("makng now!")
 
-    def _buy():
+    def buy():
         print("makng now!")
 
-    def _sell():
+    def sell():
         print("makng now!")
 
 class Decider:
