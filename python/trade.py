@@ -9,7 +9,9 @@ import trade_algorithm
 MODEL_PATH = "../model/GNUexport/"
 
 class TradeController:
-    # 株の保有状況や利益などを管理する。
+    '''
+    株の保有状況や利益などを管理する。
+    '''
     def __init__(self, init_money):
         '''
             holdstock
@@ -28,7 +30,8 @@ class TradeController:
         self.id = 0
 
         self.trade_ary = []
-        print("makng now!")
+        self.total_profit = 0
+        self.total_asset = 0
 
     def add_trade(self,trade_obj):
         self.trade_ary.append(trade_obj)
@@ -95,23 +98,34 @@ class TradeController:
             price_buy = holdstock['price']
             price_today = trade_obj.chart.get_today_price()
             profit = (price_today - price_buy) * holdstock['amount']
+            date = common.num_to_date(holdstock['date'], '%Y/%m/%d')
             value_today = price_today * holdstock['amount']
             df = pd.DataFrame({ 'profit':       [profit],
-                                'value_today':  [value_today] })
+                                'value_today':  [value_today],
+                                'date':         [date] })
             df_profit = pd.concat([df_profit, df])
 
+        #数値型になってしまっているdateを削除
+        self.holdstock = self.holdstock.drop('date', axis=1)
         # 横結合するときはインデックスあわさないとだめ（メモしたら消す）
         self.holdstock = self.holdstock.reset_index(drop=True)
         df_profit = df_profit.reset_index(drop=True)
 
+
         self.holdstock = pd.concat([self.holdstock, df_profit], axis=1)
         print(self.holdstock)
+        # 現金
+        print("money:", self.money)
         # 損益
         total_profit = self.holdstock['profit'].sum()
         print("total_profit:", total_profit)
+        # 資産合計
         stock_asset = self.holdstock['value_today'].sum()
         total_asset = self.money + stock_asset
         print("total_asset:", total_asset)
+
+        self.total_profit = total_profit
+        self.total_asset = total_asset
 
 
     def get_trade_obj(self, code):
