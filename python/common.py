@@ -31,7 +31,7 @@ def date_to_num(date, format):
     '''
 
     date = dt.datetime.strptime(date, format)
-    date_zero = dt.datetime.strptime('1900/1/1', '%Y/%m/%d')
+    date_zero = dt.datetime.strptime('1900/1/1', format)
     timedelta = date - date_zero
     num = timedelta.days
     return num
