@@ -68,3 +68,4 @@ if __name__ == "__main__":
             for i in range(test_term):
                 trade_con.trade()
                 trade_con.forward_1day()
+            trade_con.eval_asset()

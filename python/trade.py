@@ -11,6 +11,16 @@ MODEL_PATH = "../model/GNUexport/"
 class TradeController:
     # 株の保有状況や利益などを管理する。
     def __init__(self, init_money):
+        '''
+            holdstock
+                'id': 取引ID,
+                'code': 証券コード,
+                'date': 取引日時,
+                'amount': 株数,
+                'price': 購入価格,
+                'limit_price': 指値,
+                'stop_loss': 逆指値
+        '''
         # status
         self.money = init_money
         self.holdstock = pd.DataFrame()
@@ -42,7 +52,7 @@ class TradeController:
                                                             amount=amount,
                                                             limit_price=limit_price,
                                                             stop_loss=stop_loss)
-                    self.money -= df_history['price']
+                    self.money -= df_history['price'].values * df_history['amount'].values
                     self.holdstock = pd.concat([self.holdstock, df_holdstock])
                     self.trade_history = pd.concat([self.history, df_history])
                     self.id += 1
@@ -50,7 +60,7 @@ class TradeController:
                 if judge == "sell":
                     df_history = trade_obj.sell(id=self.id, amount=amount)
                     self.trade_history = pd.concat([self.history, df_history])
-                    self.money += df_history['price']
+                    self.money += df_history['price'].values
                     self.id += 1
                     self._unhold(self.holdstock, code=df_history['code'], amount=df_history['amount'])
             # test
@@ -77,6 +87,41 @@ class TradeController:
                 df_min_id['amount'] -= amount
                 self.holdstock[min_id] = df_min_id
                 amount = 0
+
+    def eval_asset(self):
+        df_profit = pd.DataFrame()
+        for key, holdstock in self.holdstock.iterrows():
+            trade_obj = self.get_trade_obj(holdstock["code"])
+            price_buy = holdstock['price']
+            price_today = trade_obj.chart.get_today_price()
+            profit = (price_today - price_buy) * holdstock['amount']
+            value_today = price_today * holdstock['amount']
+            df = pd.DataFrame({ 'profit':       [profit],
+                                'value_today':  [value_today] })
+            df_profit = pd.concat([df_profit, df])
+
+        # 横結合するときはインデックスあわさないとだめ（メモしたら消す）
+        self.holdstock = self.holdstock.reset_index(drop=True)
+        df_profit = df_profit.reset_index(drop=True)
+
+        self.holdstock = pd.concat([self.holdstock, df_profit], axis=1)
+        print(self.holdstock)
+        # 損益
+        total_profit = self.holdstock['profit'].sum()
+        print("total_profit:", total_profit)
+        stock_asset = self.holdstock['value_today'].sum()
+        total_asset = self.money + stock_asset
+        print("total_asset:", total_asset)
+
+
+    def get_trade_obj(self, code):
+        '''
+        指定されたコードのTradeオブジェクトを返す
+        '''
+        for trade_obj in self.trade_ary:
+            if trade_obj.code == code:
+                return trade_obj
+        return None
 
 class Trade:
     # チャート予測から株の売買までを行う
@@ -221,11 +266,19 @@ class Chart:
     def get_today_date(self):
         return int(max(self.df_data['日付']))
 
+    def get_today_price(self, isunstd=True):
+        date_today = self.get_today_date()
+        df_today = self.df_all_data[self.df_all_data['日付'] == date_today]
+        today_price = df_today['終値'].values
+        if isunstd:
+            data_today = int(self.stock_obj.stdconv.unstd(today_price))
+        return data_today
+
     def get_next_date(self):
         '''
         翌営業日のデータを返す
         '''
-        date_today = max(self.df_data['日付'])
+        date_today = self.get_today_date()
         df_after_tomorrow = self.df_all_data[self.df_all_data['日付'] > date_today]
         date_tomorrow = min(df_after_tomorrow['日付'])
         next = df_after_tomorrow[df_after_tomorrow['日付'] == date_tomorrow]
