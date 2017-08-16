@@ -36,6 +36,11 @@ def date_to_num(date, format):
     num = timedelta.days
     return num
 
+def num_to_date(num, format):
+
+    date = dt.datetime(1899, 12, 31) + dt.timedelta(days=num)
+    return date.strftime(format)
+
 def get_stockscode():
     '''
     現存する株のコードの配列を返す
@@ -54,6 +59,12 @@ def get_stockscode():
     df = pd.read_csv(file_path_code_utf8)
 
     return df['コード'].values
+
+def str_to_list(str, split_char):
+    '''
+    文字列strを文字split_charごとに切り分けた配列にして返す
+    '''
+    return [x for x in str.split(split_char) if len(x) != 0]
 
 class TimeMeasure:
     def __init__(self):

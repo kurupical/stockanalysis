@@ -53,6 +53,9 @@ class TradeController:
                     self.money += df_history['price']
                     self.id += 1
                     self._unhold(self.holdstock, code=df_history['code'], amount=df_history['amount'])
+            # test
+            print("日付:", common.num_to_date(trade_obj.chart.get_today_date(), format="%Y/%m/%d"))
+            print("ホールド:", self.holdstock)
 
     def _unhold(self, code, amount):
         '''
@@ -92,7 +95,7 @@ class Trade:
         引数amountだけ株を買う。
         指値limit_price, 逆指値stop_lossを設定する。
         '''
-        next = self.chart.get_next()
+        next = self.chart.get_next_date()
         # 保有銘柄数の更新
         #DataFrameの初期設定+columnsの順番指定ー＞メモに残したらこのコメント消す
         df_hold = pd.DataFrame({ 'id': id,
@@ -190,7 +193,6 @@ class Predicter:
 
                 Z = np.copy(seq)
             self.predicted.append(predicted)
-        print('making now')
 
 
 class Chart:
@@ -213,10 +215,13 @@ class Chart:
         '''
         翌営業日のデータを取得し、self.dataに格納
         '''
-        next = self.get_next()
+        next = self.get_next_date()
         self.df_data = pd.concat([self.df_data, next])
 
-    def get_next(self):
+    def get_today_date(self):
+        return int(max(self.df_data['日付']))
+
+    def get_next_date(self):
         '''
         翌営業日のデータを返す
         '''
