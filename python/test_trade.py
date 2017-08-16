@@ -1,6 +1,8 @@
 # stock_analysis library
 import trade
 import trade_algorithm
+import learn
+import common
 # common library
 import configparser as cfp
 import glob
@@ -20,17 +22,21 @@ def read_ini(file):
     config.read(file)
     # Predicterの作成
     codes = config['param']['codes']
-    start_money = int(['param']['start_money'])
-    start_date = ['param']['start_date']
-    test_term = int(['param']['test_term'])
+    codes = common.str_to_list(str=codes, split_char="\n")
+    start_money = int(config['param']['start_money'])
+    start_date = config['param']['start_date']
+    test_term = int(config['param']['test_term'])
     model_path_ary = config['param']['model_path_ary']
-    predicter = trade.predicter(model_path_ary)
+    model_path_ary = common.str_to_list(str=model_path_ary, split_char="\n")
+    predicter = trade.Predicter(model_path_ary)
     # Algorithmの作成
     tradealgo_param_ary = config['param']['tradealgo_param_ary']
+    tradealgo_param_ary = common.str_to_list(str=tradealgo_param_ary, split_char="\n")
     for algo_param in tradealgo_param_ary:
+        algo_param = common.str_to_list(str=algo_param, split_char=",")
         algos.append(select_algo(algo_param, predicter))
 
-    return codes, start_date, predicter, algos
+    return codes, start_money, start_date, test_term, predicter, algos
 
 def select_algo(algo_param, predicter):
     '''
@@ -40,8 +46,8 @@ def select_algo(algo_param, predicter):
     '''
     if algo_param[0] == "updown":
         # [1] : n_percent
-        return trade_algorithm.UpDown_Npercent(preciter=predicter,
-                                               n_percent=algo_param[1])
+        return trade_algorithm.UpDown_Npercent(predicter=predicter,
+                                               n_percent=int(algo_param[1]))
 
 if __name__ == "__main__":
 
@@ -52,11 +58,14 @@ if __name__ == "__main__":
             # iniファイルの読み込み
             ini_file = TEST_PATH + dir + "/testpattern.ini"
             codes, start_money, start_date, test_term, predicter, tradealgos = read_ini(ini_file)
-            # TradeControllerの設定
+            # Controllerの設定
             trade_con = trade.TradeController(start_money)
+            stock_con = learn.StockController()
+            stock_con.load()
             for code in codes:
-                trade = trade.Trade(code=code, tradealgo=tradealgos, predicter=predicter, stock_con=stock_con,date_to=start_date)
+                trade = trade.Trade(code=int(code), tradealgo=tradealgos, predicter=predicter, stock_con=stock_con,date_to=start_date)
                 trade_con.add_trade(trade)
             for i in range(test_term):
                 trade_con.trade()
                 trade_con.forward_1day()
+            trade_con.eval_asset()
