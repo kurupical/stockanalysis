@@ -7,6 +7,9 @@ from learn import Stock
 import random
 import pandas as pd
 import csv
+import common
+import glob
+import shutil
 
 SIZE = 300  # データサイズ
 SEQUENCE_LENGTH = 100
@@ -152,6 +155,36 @@ def verify_cor(cor=None, code=None, unit=100):
     print("cor_ave:", str(cor_ave))
     print("***************************************")
 
+def check_invalid_data():
+    stock_con = StockController()
+    stock_con.load()
+
+    for stock_obj in stock_con.stockdata:
+        msg1 = "OK"
+        msg2 = "OK"
+        stock_1daybefore = 0
+        for key, stock in stock_obj.data.iterrows():
+            if stock_1daybefore != 0:
+                # 前日比２倍以上
+                if stock_1daybefore < stock['終値'] * 2 and msg1 == "OK":
+                    print("＜前日比２倍以上＞銘柄:", stock_obj.code)
+                    msg1 = "NG"
+                stock_1daybefore = stock['終値']
+
+            # 金額が異常値
+            # if stock_obj.stdconv.unstd(np.array([stock['終値']])) > 10**8:
+            if stock['終値'] > 10**8 and msg2 == "OK":
+                print("＜金額異常＞銘柄:", stock_obj.code)
+                msg2 = "NG"
+
+            if msg1 == "NG" or msg2=="NG":
+                input_path = "../dataset/stock_analysis/" + str(stock_obj.code) + "*.csv"
+                files = glob.glob(input_path)
+                for file in files:
+                    shutil.move(file, "../dataset/stock_analysis/NGData/")
+
+
 if __name__ == '__main__':
     # 動かしたいメソッドを記述
-    verify_cor(cor=0.6, code=1301)
+    # verify_cor(cor=0.6, code=1301)
+    check_invalid_data()
