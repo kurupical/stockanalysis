@@ -7,6 +7,11 @@ class AssetManager:
     def add_assetmng(self, assetmng_obj):
         self.assetmng_ary.append(assetmng_obj)
 
+    def judge(self, trade_con, code, amount):
+        for obj in self.assetmng_ary:
+            if obj.judge(trade_con, code, amount) is False:
+                return False
+        return True
 
 class MustHave_Npercent_Money:
     '''
@@ -15,10 +20,18 @@ class MustHave_Npercent_Money:
     def __init__(self, n_percent):
         self.n_percent = n_percent
 
-    def check(self, trade_con, code):
+    def judge(self, trade_con, code, amount):
         trade_obj = trade_con.get_trade_obj(code)
-        price_today = trade_obj.chart.get_today_price()
-        
+        price_today = trade_obj.chart.get_today_price() * amount
+        asset_n_percent = trade_con.total_asset * self.n_percent / 100
+
+        print("debug: total_asset=", trade_con.total_asset)
+        print("debug: price_today=", price_today)
+        print("debug: asset_n_percent=", asset_n_percent)
+        if (trade_con.money - price_today) < asset_n_percent:
+            return False
+        else:
+            return True
 
 class MustnotBuy_Npercent_Per_stock:
     '''
@@ -27,8 +40,8 @@ class MustnotBuy_Npercent_Per_stock:
     def __init__(self, n_percent):
         self.n_percent = n_percent
 
-    def check(self, trade_con, code):
-
+    def judge(self, trade_con, code, amount):
+        print("making now!")
 
 class MustnotBuy_Nday:
     '''
@@ -37,4 +50,5 @@ class MustnotBuy_Nday:
     def __init__(self, n_day):
         self.n_day = n_day
 
-    def check(self, trade_con, code):
+    def judge(self, trade_con, code, amount):
+        print("making now!")

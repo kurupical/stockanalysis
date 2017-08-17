@@ -12,7 +12,7 @@ class TradeController:
     '''
     株の保有状況や利益などを管理する。
     '''
-    def __init__(self, init_money):
+    def __init__(self, init_money, assetmng):
         '''
             holdstock
                 'id': 取引ID,
@@ -25,13 +25,16 @@ class TradeController:
         '''
         # status
         self.money = init_money
+        self.assetmng = assetmng
+
+        # initialize
         self.holdstock = pd.DataFrame()
         self.history = pd.DataFrame()
         self.id = 0
+        self.total_profit = 0
+        self.total_asset = init_money
 
         self.trade_ary = []
-        self.total_profit = 0
-        self.total_asset = 0
 
     def add_trade(self,trade_obj):
         self.trade_ary.append(trade_obj)
@@ -42,30 +45,29 @@ class TradeController:
 
     def trade(self):
         for trade_obj in self.trade_ary:
-            # ---
-            # AssetManagementによる売買判定をここで
-            # ---
             judgement = trade_obj.decide_trade(predict_term=30)
             # ---
             # amountの調整が必要ならここで
             # ---
             for judge, amount, limit_price, stop_loss in judgement:
                 if judge == "buy":
-                    df_holdstock, df_history = trade_obj.buy(id=self.id,
-                                                            amount=amount,
-                                                            limit_price=limit_price,
-                                                            stop_loss=stop_loss)
-                    self.money -= df_history['price'].values * df_history['amount'].values
-                    self.holdstock = pd.concat([self.holdstock, df_holdstock])
-                    self.trade_history = pd.concat([self.history, df_history])
-                    self.id += 1
+                    if self.assetmng.judge(trade_con=self, code=trade_obj.code, amount=amount):
+                        df_holdstock, df_history = trade_obj.buy(id=self.id,
+                                                                amount=amount,
+                                                                limit_price=limit_price,
+                                                                stop_loss=stop_loss)
+                        self.money -= df_history['price'].values * df_history['amount'].values
+                        self.holdstock = pd.concat([self.holdstock, df_holdstock])
+                        self.trade_history = pd.concat([self.history, df_history])
+                        self.id += 1
 
-                if judge == "sell":
-                    df_history = trade_obj.sell(id=self.id, amount=amount)
-                    self.trade_history = pd.concat([self.history, df_history])
-                    self.money += df_history['price'].values
-                    self.id += 1
-                    self._unhold(self.holdstock, code=df_history['code'], amount=df_history['amount'])
+                    if judge == "sell":
+                        df_history = trade_obj.sell(id=self.id, amount=amount)
+                        self.trade_history = pd.concat([self.history, df_history])
+                        self.money += df_history['price'].values
+                        self.id += 1
+                        self._unhold(self.holdstock, code=df_history['code'], amount=df_history['amount'])
+                    self.eval_asset()
             # test
             print("日付:", common.num_to_date(trade_obj.chart.get_today_date(), format="%Y/%m/%d"))
             print("ホールド:", self.holdstock)
@@ -93,12 +95,17 @@ class TradeController:
 
     def eval_asset(self):
         df_profit = pd.DataFrame()
+        self.holdstock_eval = pd.DataFrame()
         for key, holdstock in self.holdstock.iterrows():
             trade_obj = self.get_trade_obj(holdstock["code"])
             price_buy = holdstock['price']
             price_today = trade_obj.chart.get_today_price()
             profit = (price_today - price_buy) * holdstock['amount']
-            date = common.num_to_date(holdstock['date'], '%Y/%m/%d')
+            # まだ変換されていない場合は変換する
+            if isinstance(holdstock['date'], float):
+                date = common.num_to_date(holdstock['date'], '%Y/%m/%d')
+            else:
+                date = holdstock['date']
             value_today = price_today * holdstock['amount']
             df = pd.DataFrame({ 'profit':       [profit],
                                 'value_today':  [value_today],
@@ -106,27 +113,26 @@ class TradeController:
             df_profit = pd.concat([df_profit, df])
 
         #数値型になってしまっているdateを削除
-        self.holdstock = self.holdstock.drop('date', axis=1)
+        self.holdstock_eval = self.holdstock.drop('date', axis=1)
         # 横結合するときはインデックスあわさないとだめ（メモしたら消す）
-        self.holdstock = self.holdstock.reset_index(drop=True)
+        self.holdstock_eval= self.holdstock.reset_index(drop=True)
         df_profit = df_profit.reset_index(drop=True)
 
 
-        self.holdstock = pd.concat([self.holdstock, df_profit], axis=1)
-        print(self.holdstock)
+        self.holdstock_eval = pd.concat([self.holdstock_eval, df_profit], axis=1)
+        print(self.holdstock_eval)
         # 現金
         print("money:", self.money)
         # 損益
-        total_profit = self.holdstock['profit'].sum()
+        total_profit = self.holdstock_eval['profit'].sum()
         print("total_profit:", total_profit)
         # 資産合計
-        stock_asset = self.holdstock['value_today'].sum()
+        stock_asset  = self.holdstock_eval['value_today'].sum()
         total_asset = self.money + stock_asset
         print("total_asset:", total_asset)
 
         self.total_profit = total_profit
         self.total_asset = total_asset
-
 
     def get_trade_obj(self, code):
         '''
@@ -321,5 +327,5 @@ if __name__ == "__main__":
 
     stock_con = learn.StockController()
     stock_con.load()
-    test()
     #test
+    test()
