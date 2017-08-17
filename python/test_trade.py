@@ -1,6 +1,7 @@
 # stock_analysis library
 import trade
 import trade_algorithm
+import asset_manager
 import learn
 import common
 # common library
@@ -18,6 +19,7 @@ def read_ini(file):
     predicterオブジェクトと売買アルゴリズム（配列）を返す
     '''
     algos = []
+    assetmng = asset_manager.AssetManager()
     config = cfp.ConfigParser()
     config.read(file)
     # Predicterの作成
@@ -36,7 +38,13 @@ def read_ini(file):
         algo_param = common.str_to_list(str=algo_param, split_char=",")
         algos.append(select_algo(algo_param, predicter))
 
-    return codes, start_money, start_date, test_term, predicter, algos
+    # AssetManagerの作成
+    assetmanager_param_ary = config['param']['assetmanager_param_ary']
+    assetmanager_param_ary = common.str_to_list(str=assetmanager_param_ary, split_char="\n")
+    for assetmng_param in assetmanager_param_ary:
+        assetmng_param = common.str_to_list(str=assetmng_param, split_char=",")
+        assetmng.add_assetmng(select_assetmng(assetmng_param))
+    return codes, start_money, start_date, test_term, predicter, algos, assetmng
 
 def select_algo(algo_param, predicter):
     '''
@@ -48,6 +56,15 @@ def select_algo(algo_param, predicter):
         # [1] : n_percent
         return trade_algorithm.UpDown_Npercent(predicter=predicter,
                                                n_percent=int(algo_param[1]))
+def select_assetmng(assetmng_param):
+    '''
+    iniファイルのパラメータを解釈し、資産管理ルールのオブジェクトを返す
+    algo_param[0] : アルゴリズムの名前
+    algo_param[1:] : アルゴリズムのパラメータ
+    '''
+    if assetmng_param[0] == "MustHave_Npercent_Money":
+        return asset_manager.MustHave_Npercent_Money(n_percent=int(assetmng_param[1]))
+
 
 if __name__ == "__main__":
 
@@ -57,15 +74,14 @@ if __name__ == "__main__":
         if os.path.isdir(TEST_PATH + dir) and re.match(r"(.*)_test", dir) is not None:
             # iniファイルの読み込み
             ini_file = TEST_PATH + dir + "/testpattern.ini"
-            codes, start_money, start_date, test_term, predicter, tradealgos = read_ini(ini_file)
+            codes, start_money, start_date, test_term, predicter, tradealgos, assetmng = read_ini(ini_file)
             # Controllerの設定
-            trade_con = trade.TradeController(start_money)
+            trade_con = trade.TradeController(start_money, assetmng)
             stock_con = learn.StockController()
             stock_con.load()
             for code in codes:
-                trade = trade.Trade(code=int(code), tradealgo=tradealgos, predicter=predicter, stock_con=stock_con,date_to=start_date)
-                trade_con.add_trade(trade)
+                trade_obj = trade.Trade(code=int(code), tradealgo=tradealgos, predicter=predicter, stock_con=stock_con,date_to=start_date)
+                trade_con.add_trade(trade_obj)
             for i in range(test_term):
                 trade_con.trade()
                 trade_con.forward_1day()
-            trade_con.eval_asset()
