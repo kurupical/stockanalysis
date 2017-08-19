@@ -134,7 +134,17 @@ class StockController:
         print("高相関銘柄:", len(self.stockdata))
         print("*******************************************")
 
-    def isexist_past_Nday(self, n_day):
+    def search_isinrange_marketcap(self, min_value, max_value):
+        '''
+        時価総額がmin_valueとmax_valueの間にある銘柄のみを抽出する。
+        '''
+        ary = []
+        amount_of_search = len(self.stockdata)
+
+        for stock_obj in self.stockdata:
+            # 時価総額という項目はない。
+            
+    def search_isexist_past_Nday(self, n_day):
         '''
         過去N日分のデータが存在する株のみを抽出し、self.stockdataに格納する。
         ※歯抜けデータは考慮していません・・・
