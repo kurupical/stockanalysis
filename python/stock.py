@@ -134,6 +134,26 @@ class StockController:
         print("高相関銘柄:", len(self.stockdata))
         print("*******************************************")
 
+    def isexist_past_Nday(self, n_day):
+        '''
+        過去N日分のデータが存在する株のみを抽出し、self.stockdataに格納する。
+        ※歯抜けデータは考慮していません・・・
+        '''
+        ary = []
+        amount_of_search = len(self.stockdata)
+
+        for stock_obj in self.stockdata:
+            if len(stock_obj.data) > n_day:
+                stock_obj.data = stock_obj.data[-n_day:]
+                ary.append(stock_obj)
+
+        self.stockdata = ary
+        print("isexist_past_Nday 結果:\n")
+        print("*******************************************")
+        print("分析銘柄数:", amount_of_search)
+        print("抽出銘柄数:", len(self.stockdata))
+        print("*******************************************")
+
 
     def unit_data(self):
         x, y = self.unitrule_stockcon.unit(self.stockdata)
