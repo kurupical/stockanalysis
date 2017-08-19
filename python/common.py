@@ -1,6 +1,7 @@
 import codecs
 import datetime as dt
 import pandas as pd
+import numpy as np
 import urllib.request
 import time
 
@@ -75,3 +76,53 @@ class TimeMeasure:
 
     def reset(self):
         self.start_ = time.time()
+
+class StdConverter:
+    '''
+        データ群の標準化、標準化戻しを行う
+        attribute
+            numpy/pandas data : 標準化対象のデータ
+            pandas _std_info : dataの配列ごとの平均、標準偏差を格納
+    '''
+    def __init__(self, data):
+        self.data = data
+        self.data_type = type(data)
+
+        self.std(self.data)
+
+    def std(self, data=None):
+        self.data_std = data
+        self._std_info = pd.DataFrame()
+
+        # numpy/pandas
+        if type(data) == type(pd.DataFrame()):
+            obj_type = "pd"
+            self.length = len(data.columns)
+            data = data.values
+        elif type(data) == type(np.array([[]])):
+            obj_type = "np"
+            self.length = len(data[0])
+            data = data
+
+        for i in range(self.length):
+            ary = np.copy(data[:,i])
+            ary_std = (ary - ary.mean()) / ary.std()
+            if obj_type == "pd":
+                self.data_std.iloc[:, i] = ary_std
+            elif obj_type == "np":
+                self.data_std[:, i] = ary_std
+            std_info = pd.Series([i, ary.mean(), ary.std()], index=['item' ,'mean' ,'std'])
+            self._std_info = self._std_info.append(std_info, ignore_index=True)
+
+    def unstd(self, data=None):
+        # numpy/pandas
+        if type(data) == type(pd.DataFrame()):
+            data = data.values
+        elif type(data) == type(np.array([[]])):
+            data = data
+
+        data_unstd = np.copy(data)
+        for i in range(self.length):
+            df = self._std_info[self._std_info["item"] == i]
+            data_unstd[:] = data_unstd[:] * df['std'].values + df['mean'].values
+        return data_unstd
