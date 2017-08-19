@@ -18,7 +18,7 @@ class UpDown_Npercent:
         judge = ""
         amount = 0
         limit_price = 0
-        stop_loss = 0
+        stop_loss = 0r
         buy = 0
         sell = 0
         total = len(self.predicter.predicted)

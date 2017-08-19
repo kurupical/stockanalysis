@@ -47,16 +47,13 @@ class Stock:
         for str in self.input_items:
             self.all_data[str] = self.data[str]
 
-    def unit(self, unit):
+    def unit(self):
         '''多分いらないはず
         x = np.array([[[]]])
         y = np.array([[]])
 
         data = []
         target = []
-        '''
-        ary = self.data.values
-        '''多分いらないはず
         if len(self.data) > unit:
             for i in range(0, len(ary) - unit):
                 data.append(ary[i:i + unit, :])
@@ -68,7 +65,7 @@ class Stock:
                 x = np.concatenate((x, np.array(data).reshape(len(data), unit, len(data[0][0]))), axis=0)
                 y = np.concatenate((y, np.array(target).reshape(len(data), len(target[0]))), axis=0)
         '''
-        x, y = self.unitrule_stock(ary)
+        x, y = self.unitrule_stock(stock_obj=self)
         return x, y
 
     # def convertupdownratio(self, ary):
