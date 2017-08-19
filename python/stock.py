@@ -1,9 +1,14 @@
+import glob
+from tqdm import tqdm
+import pandas as pd
+import numpy as np
+from common import *
 
 class Stock:
     def __init__(self,
                 read_data=None,
                 isStdmode=True,
-                isUpdownratiomode=False
+                isUpdownratiomode=False,
                 input_items=None,
                 output_items=None,
                 unitrule_stock=None):
@@ -11,7 +16,7 @@ class Stock:
         self.isUpdownratiomode = isUpdownratiomode
         self.input_items = input_items
         self.output_items = output_items
-        self.unitrule_stock = unit_stock
+        self.unitrule_stock = unitrule_stock
         try:
             codes = read_data["証券コード"].values
             self.code = codes[0]
@@ -48,24 +53,8 @@ class Stock:
             self.all_data[str] = self.data[str]
 
     def unit(self):
-        '''多分いらないはず
-        x = np.array([[[]]])
-        y = np.array([[]])
-
-        data = []
-        target = []
-        if len(self.data) > unit:
-            for i in range(0, len(ary) - unit):
-                data.append(ary[i:i + unit, :])
-                target.append(ary[i + unit, :len(self.output_items)])
-            if len(x) == 1:
-                x = np.array(data).reshape(len(data), unit, len(data[0][0]))
-                y = np.array(target).reshape(len(target),len(target[0]))
-            else:
-                x = np.concatenate((x, np.array(data).reshape(len(data), unit, len(data[0][0]))), axis=0)
-                y = np.concatenate((y, np.array(target).reshape(len(data), len(target[0]))), axis=0)
-        '''
-        x, y = self.unitrule_stock(stock_obj=self)
+        ary = self.data.values
+        x, y = self.unitrule_stock.unit(self)
         return x, y
 
     # def convertupdownratio(self, ary):
@@ -82,10 +71,14 @@ class StockController:
     def __init__(self,
                  csv_path,
                  unitrule_stock,
-                 unitrule_stockcon):
+                 unitrule_stockcon,
+                 input_items,
+                 output_items):
         self.csv_path = csv_path
         self.unitrule_stock = unitrule_stock
         self.unitrule_stockcon = unitrule_stockcon
+        self.input_items = input_items
+        self.output_items = output_items
         self.stockdata = [] # Stockオブジェクトを格納するlist
 
     def load(self):
@@ -97,9 +90,12 @@ class StockController:
         for file in files:
             read_data = pd.read_csv(file)
             if (len(read_data.index) != 0):
-                stock = Stock(read_data)
+                stock = Stock(read_data=read_data,
+                              input_items=self.input_items,
+                              output_items=self.output_items,
+                              unitrule_stock=self.unitrule_stock)
                 self.stockdata.append(stock)
-                pbar.update(1)
+            pbar.update(1)
         pbar.close()
 
     def search_high_cor(self, cor, code, unit):
@@ -140,31 +136,14 @@ class StockController:
 
 
     def unit_data(self):
-        ''' たぶんいらん
-        x = np.array([[[]]])
-        y = np.array([[]])
-        print ("unit_data")
-        '''
-        x, y = self.unitrule_stockcon(self.stockdata)
-        '''
-        pbar = tqdm(total=len(self.stockdata))
-        for stock_obj in self.stockdata:
-            data, target = stock_obj.unit(unit)
-            if len(x) == 1:
-                x = np.array(data)
-                y = np.array(target)
-            else:
-                x = np.concatenate((x, data), axis=0)
-                y = np.concatenate((y, target), axis=0)
-            pbar.update(1)
-        pbar.close()
+        x, y = self.unitrule_stockcon.unit(self.stockdata)
 
         print("unit_data 結果:\n")
         print("*******************************************")
         print("分析銘柄数:", len(self.stockdata))
         print("入力データ:", len(x))
         print("*******************************************")
-        '''
+
         return x, y
 
     def get_data(self, code):
