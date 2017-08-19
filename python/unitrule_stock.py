@@ -25,21 +25,21 @@ class UnitRule_Stock_ForwardDay:
         target = []
         ary = stock_obj.data.values
 
-        if len(data) > unit_amount:
-            for i in range(0, len(ary) - unit_amount - self.forward_day):
-                data.append(ary[i:i + unit_amount, :])
-                if mode == "normal"
-                    target.append(ary[i + unit_amount + self.forward_day - 1, :len(self.output_items)])
-                if mode == "max_min":
-                    pred_ary = ary[i + unit_amount, :self.forward_day, :len(self.output_items)]
+        if len(ary) > self.unit_amount:
+            for i in range(0, len(ary) - self.unit_amount - self.forward_day):
+                data.append(ary[i:i + self.unit_amount, :])
+                if self.predict_mode == "normal":
+                    target.append(ary[i + self.unit_amount + self.forward_day - 1, :len(stock_obj.output_items)])
+                if self.predict_mode == "max_min":
+                    pred_ary = ary[i + self.unit_amount, :self.forward_day, :len(stock_obj.output_items)]
                     max_value = np.max(pred_ary)
                     min_value = np.min(pred_ary)
                     target = [max_value, min_value]
             if len(x) == 1:
-                x = np.array(data).reshape(len(data), unit_amount, len(data[0][0]))
+                x = np.array(data).reshape(len(data), self.unit_amount, len(data[0][0]))
                 y = np.array(target).reshape(len(target),len(target[0]))
             else:
-                x = np.concatenate((x, np.array(data).reshape(len(data), unit_amount, len(data[0][0]))), axis=0)
+                x = np.concatenate((x, np.array(data).reshape(len(data), self.unit_amount, len(data[0][0]))), axis=0)
                 y = np.concatenate((y, np.array(target).reshape(len(data), len(target[0]))), axis=0)
 
         return x, y
