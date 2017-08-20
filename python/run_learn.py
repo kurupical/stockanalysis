@@ -19,7 +19,9 @@ def test():
     stock_con.search_isexist_past_Nday(n_day=200)
     x, y = stock_con.unit_data()
     # networkの作成
-
+    n_in = len(x[0, 0])
+    n_out = len(y[0])
+    # N_train = in(len(x) * )
     # 学習/保存
 
 def main():

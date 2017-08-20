@@ -142,8 +142,9 @@ class StockController:
         amount_of_search = len(self.stockdata)
 
         for stock_obj in self.stockdata:
+            print("making now")
             # 時価総額という項目はない。
-            
+
     def search_isexist_past_Nday(self, n_day):
         '''
         過去N日分のデータが存在する株のみを抽出し、self.stockdataに格納する。

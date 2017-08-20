@@ -18,8 +18,8 @@ from tensorflow.contrib import rnn
 from tqdm import tqdm
 from sklearn.utils import shuffle
 
-# TEST_MODE = False
-TEST_MODE = True
+TEST_MODE = False
+# TEST_MODE = True
 
 if TEST_MODE:
     CSV_PATH = "../dataset/debug/stock_analysis/" #テスト
@@ -532,7 +532,7 @@ if __name__ == '__main__':
     n_hidden = [30]
     classifier = ["GRU"]
     layer = [1]
-    epochs = 100
+    epochs = 100000
     stock_con = StockController()
     for un in unit:
         for lr in learning_rate:
