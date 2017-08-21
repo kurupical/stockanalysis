@@ -31,10 +31,10 @@ class UnitRule_Stock_ForwardDay:
                 if self.predict_mode == "normal":
                     target.append(ary[i + self.unit_amount + self.forward_day - 1, :len(stock_obj.output_items)])
                 if self.predict_mode == "max_min":
-                    pred_ary = ary[i + self.unit_amount, :self.forward_day, :len(stock_obj.output_items)]
+                    pred_ary = ary[i + self.unit_amount : i + self.unit_amount + self.forward_day, :len(stock_obj.output_items)]
                     max_value = np.max(pred_ary)
                     min_value = np.min(pred_ary)
-                    target = [max_value, min_value]
+                    target.append([max_value, min_value])
             if len(x) == 1:
                 x = np.array(data).reshape(len(data), self.unit_amount, len(data[0][0]))
                 y = np.array(target).reshape(len(target),len(target[0]))
