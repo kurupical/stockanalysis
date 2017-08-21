@@ -119,7 +119,7 @@ class Network_BasicRNN:
                             'layer':            self.layer,
                             'learning_rate':    self.learning_rate,
                             'key':              self.key }
-        with open(path + 'test.ini', 'w') as configfile:
+        with open(path + '.ini', 'w') as configfile:
             config.write(configfile)
 
     def load(self, path):
