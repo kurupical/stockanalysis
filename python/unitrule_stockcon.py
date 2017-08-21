@@ -14,6 +14,9 @@ class UnitRule_Stockcon_Bundle:
         例　学習データ＝１０銘柄、２００日分。
         　　過去５０日分について学習する場合
         　　→データ数は、１０銘柄×（２００−５０）日分
+
+        return: #説明文ちゃんとかく
+            x 銘柄ごと/期間ごとの株価
         '''
         stockdata_ary = []
         for stock_obj in stock_obj_ary:
@@ -23,22 +26,22 @@ class UnitRule_Stockcon_Bundle:
         stockdata_ary[][][][]
             １次元目 : 銘柄ごとのインデックス
             2次元目 : [0]=学習データ、[1]=教師データ
-            3次元目 : 学習データの単位([１日目〜N日目の株価], [2日目〜N+1日目の株価], ・・・)
             4次元目 : 学習データの内容(1日目の株価、２日目の株価…N日目の株価)
+            3次元目 : 学習データの単位([１日目〜N日目の株価], [2日目〜N+1日目の株価], ・・・)
         '''
 
         is_empty = True
         x = np.array([[[]]])
         y = np.array([[]])
-        for i in range(len(stockdata_ary)):
-            print("i=:", i)
+        ary = []
+        length_stockdata = len(stockdata_ary)
+        for i in range(length_stockdata):
             target_x, target_y = stockdata_ary[i]
 
             # target以外の銘柄を取得
             other_x = []
             other_y = []
             for k in range(len(stockdata_ary)):
-                print("k:", k)
                 if k != i:
                     other_x.append(stockdata_ary[k][0])
                     other_y.append(stockdata_ary[k][1])
@@ -56,7 +59,12 @@ class UnitRule_Stockcon_Bundle:
                 y = data_y
                 is_empty = False
             else:
-                print("len(x) != 1")
                 x = np.concatenate((x, data_x), axis=0)
                 y = np.concatenate((y, data_y), axis=0)
-        return x, y
+
+
+        convert_x = x.reshape(len(y), len(x[0,0]), length_stockdata)
+        # 多項目を扱うときはこっち（今は終値のみしか対応していません！）
+        # convert_x = x.reshape(len(y), len(x[0,0]), length_stockdata, len(x[0][0][0]))
+
+        return convert_x, y
