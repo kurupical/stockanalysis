@@ -134,7 +134,7 @@ class StockController:
         print("高相関銘柄:", len(self.stockdata))
         print("*******************************************")
 
-    def search_isinrange_marketcap(self, min_value, max_value):
+    def search_isinrange_marketcap(self, min_value=0, max_value=10*20):
         '''
         時価総額(marketcap)がmin_valueとmax_valueの間にある銘柄のみを抽出する。
         '''
@@ -142,6 +142,10 @@ class StockController:
         amount_of_search = len(self.stockdata)
 
         for stock_obj in self.stockdata:
+            stock_obj.all_data = stock_obj.all_data[stock_obj.all_data["時価総額"] <= max_value]
+            stock_obj.all_data = stock_obj.all_data[stock_obj.all_data["時価総額"] >= max_value]
+            stock_obj.data = pd.DataFrame(stock_obj.all_data["終値"])
+            print(stock_obj.data)
             print("making now")
             # 時価総額という項目はない。
 
@@ -152,7 +156,6 @@ class StockController:
             date_num= date_to_num(ymd, "%Y/%m/%d")
             stock_obj.all_data = stock_obj.all_data[stock_obj.all_data["日付"] <= date_num]
             stock_obj.data = pd.DataFrame(stock_obj.all_data["終値"])
-            print(stock_obj.data)
 
             ary.append(stock_obj)
         self.stockdata = ary
