@@ -136,7 +136,7 @@ class StockController:
 
     def search_isinrange_marketcap(self, min_value, max_value):
         '''
-        時価総額がmin_valueとmax_valueの間にある銘柄のみを抽出する。
+        時価総額(marketcap)がmin_valueとmax_valueの間にある銘柄のみを抽出する。
         '''
         ary = []
         amount_of_search = len(self.stockdata)
@@ -144,6 +144,18 @@ class StockController:
         for stock_obj in self.stockdata:
             print("making now")
             # 時価総額という項目はない。
+
+    def search_is_YMDbefore(self, ymd):
+        ary = []
+
+        for stock_obj in self.stockdata:
+            date_num= date_to_num(ymd, "%Y/%m/%d")
+            stock_obj.all_data = stock_obj.all_data[stock_obj.all_data["日付"] <= date_num]
+            stock_obj.data = pd.DataFrame(stock_obj.all_data["終値"])
+            print(stock_obj.data)
+
+            ary.append(stock_obj)
+        self.stockdata = ary
 
     def search_isexist_past_Nday(self, n_day):
         '''
