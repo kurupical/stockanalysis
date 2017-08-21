@@ -8,21 +8,22 @@ from learn2 import *
 def test():
     # とりあえずなんか動かしたい時用
     # @param
-    unit_amount = 100
+    unit_amount = 50
     forward_day = 30
-    # predict_mode = "max_min"
-    predict_mode = "normal"
-    csv_path = "../dataset/debug/stock_analysis/"
+    predict_mode = "max_min"
+    # predict_mode = "normal"
+    csv_path = "../dataset/debug/test/"
     test_ratio = 0.8
     batch_size = 50
     input_items = ["終値"]
     output_items = ["終値"]
-    n_day = 200
+    n_day = 150
     layer = 1
     n_hidden = 30
     clf = "GRU"
     learning_rate = 0.001
     key = None
+    epochs = 1000
     config_path = "net_config.ini"
     result_path = "../result/" + time.ctime().replace(" ", "_") + "/"
     YMDbefore = "2016/12/31"
@@ -36,7 +37,7 @@ def test():
                                 output_items=output_items)
     stock_con.load()
     # 学習データの絞り込み１　＠　時価総額 making now
-    # stock_con.search_isinrange_marketcap(min_value=0, max_vaule=10**11)
+    # stock_con.search_isinrange_marketcap(min_value=0, max_vaule=30**11)
     # 学習データの絞り込み２　学習対象の日付
     stock_con.search_is_YMDbefore(ymd=YMDbefore)
     # 学習データの絞り込み３　＠　過去N日
@@ -64,7 +65,7 @@ def test():
                     batch_size=batch_size,
                     result_path=result_path)
 
-    learner.learn(epochs=10)
+    learner.learn(epochs=epochs)
 
 def main():
     # iniファイルから読むとかいう処理はこっちで後で書く

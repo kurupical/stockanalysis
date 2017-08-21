@@ -58,7 +58,7 @@ class Learn:
 
             if (epoch+1) % 1000 == 0:
                 self._save(epoch)
-        self._save(epoch)
+        self._save(str(epoch) + "_final")
 
     def _save(self, epoch):
             path = self.result_path + "/" + str(epoch) + "/"
