@@ -70,7 +70,6 @@ class TradeController:
                     self.eval_asset()
             # test
             print("日付:", common.num_to_date(trade_obj.chart.get_today_date(), format="%Y/%m/%d"))
-            print("ホールド:", self.holdstock)
 
     def _unhold(self, code, amount):
         '''
@@ -96,38 +95,40 @@ class TradeController:
     def eval_asset(self):
         df_profit = pd.DataFrame()
         self.holdstock_eval = pd.DataFrame()
-        for key, holdstock in self.holdstock.iterrows():
-            trade_obj = self.get_trade_obj(holdstock["code"])
-            price_buy = holdstock['price']
-            price_today = trade_obj.chart.get_today_price()
-            profit = (price_today - price_buy) * holdstock['amount']
-            # まだ変換されていない場合は変換する
-            if isinstance(holdstock['date'], float):
-                date = common.num_to_date(holdstock['date'], '%Y/%m/%d')
-            else:
-                date = holdstock['date']
-            value_today = price_today * holdstock['amount']
-            df = pd.DataFrame({ 'profit':       [profit],
-                                'value_today':  [value_today],
-                                'date':         [date] })
-            df_profit = pd.concat([df_profit, df])
+        total_profit = 0
+        stock_asset = 0
+        if len(self.holdstock) > 0:
+            for key, holdstock in self.holdstock.iterrows():
+                trade_obj = self.get_trade_obj(holdstock["code"])
+                price_buy = holdstock['price']
+                price_today = trade_obj.chart.get_today_price()
+                profit = (price_today - price_buy) * holdstock['amount']
+                # まだ変換されていない場合は変換する
+                if isinstance(holdstock['date'], float):
+                    date = common.num_to_date(holdstock['date'], '%Y/%m/%d')
+                else:
+                    date = holdstock['date']
+                value_today = price_today * holdstock['amount']
+                df = pd.DataFrame({ 'profit':       [profit],
+                                    'value_today':  [value_today],
+                                    'date':         [date] })
+                df_profit = pd.concat([df_profit, df])
 
-        #数値型になってしまっているdateを削除
-        self.holdstock_eval = self.holdstock.drop('date', axis=1)
-        # 横結合するときはインデックスあわさないとだめ（メモしたら消す）
-        self.holdstock_eval= self.holdstock.reset_index(drop=True)
-        df_profit = df_profit.reset_index(drop=True)
+            #数値型になってしまっているdateを削除
+            self.holdstock_eval = self.holdstock.drop('date', axis=1)
+            # 横結合するときはインデックスあわさないとだめ（メモしたら消す）
+            self.holdstock_eval= self.holdstock.reset_index(drop=True)
+            df_profit = df_profit.reset_index(drop=True)
+            self.holdstock_eval = pd.concat([self.holdstock_eval, df_profit], axis=1)
 
-
-        self.holdstock_eval = pd.concat([self.holdstock_eval, df_profit], axis=1)
+            total_profit = self.holdstock_eval['profit'].sum()
+            stock_asset  = self.holdstock_eval['value_today'].sum()
         print(self.holdstock_eval)
         # 現金
         print("money:", self.money)
         # 損益
-        total_profit = self.holdstock_eval['profit'].sum()
         print("total_profit:", total_profit)
         # 資産合計
-        stock_asset  = self.holdstock_eval['value_today'].sum()
         total_asset = self.money + stock_asset
         print("total_asset:", total_asset)
 
