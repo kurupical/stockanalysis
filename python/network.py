@@ -1,6 +1,6 @@
 import tensorflow as tf
 import random
-import configparser
+from configparser import *
 
 class Network_BasicRNN:
     def __init__(self, unit_amount, n_hidden, n_in, n_out, clf, layer, learning_rate, key=None, config_path=None):
@@ -21,13 +21,13 @@ class Network_BasicRNN:
             self.key = key
 
         # placeholderの宣言
-        self.x = tf.placeholder(tf.float32, shape=[None, unit_amount, n_in])
+        self.x = tf.placeholder(tf.float32, shape=[None, n_in, unit_amount])
         self.t = tf.placeholder(tf.float32, shape=[None, n_out])
         self.isTraining = tf.placeholder(tf.bool)
         self.n_batch = tf.placeholder(tf.int32, [])
 
         # モデル、誤差関数、学習アルゴリズムの定義
-        self.y = self._inference(x=self.x, clf=clf, n_batch=self.n_batch, maxlen=unit_amount, n_hidden=n_hidden, n_out=n_out, n_in=n_in, layer=layer)
+        self.y = self._inference(x=self.x, clf=clf, n_batch=self.n_batch, maxlen=n_in, n_hidden=n_hidden, n_out=n_out, n_in=n_in, layer=layer)
         self.ls = self._loss(self.y, self.t)
         self.train_step = self._training(self.ls, learning_rate=learning_rate)
 
@@ -106,11 +106,14 @@ class Network_BasicRNN:
         mean, var = tf.nn.moments(x, [0])
         return gamma * (x - mean) / tf.sqrt(var + eps) + beta
 
-    def save(self, path):
+    def save(self, path, code_ary):
         #save_sessionと置き換える
         self.saver.save(self.sess, path)
         # configファイルを作成 https://docs.python.jp/3/library/configparser.html
-        config = configparser.ConfigParser()
+        config = ConfigParser()
+        codes = ""
+        for code in code_ary:
+            codes = codes + str(code) + ","
         config['param'] = { 'unit_amount':      self.unit_amount,
                             'n_hidden':         self.n_hidden,
                             'n_in':             self.n_in,
@@ -118,7 +121,8 @@ class Network_BasicRNN:
                             'clf':              self.clf,
                             'layer':            self.layer,
                             'learning_rate':    self.learning_rate,
-                            'key':              self.key }
+                            'key':              self.key,
+                            'codes':            codes }
         with open(path + '.ini', 'w') as configfile:
             config.write(configfile)
 

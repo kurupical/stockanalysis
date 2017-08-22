@@ -4,7 +4,7 @@ from sklearn.cross_validation import train_test_split
 import os
 
 class Learn:
-    def __init__(self, x, y, network, test_ratio, unit_amount, batch_size, result_path):
+    def __init__(self, x, y, network, test_ratio, unit_amount, batch_size, result_path, code_ary):
         self.x = x
         self.y = y
         self.network = network
@@ -26,6 +26,7 @@ class Learn:
             train_test_split(x, y, test_size=self.N_validation)
 
         self.n_batches = self.N_train // self.batch_size
+        self.code_ary = code_ary
 
     def learn(self, epochs):
         timetotal = TimeMeasure()
@@ -64,4 +65,4 @@ class Learn:
             path = self.result_path + "/" + str(epoch) + "/"
             os.mkdir(path)
             path = path + "model.ckpt"
-            self.network.save(path=path)
+            self.network.save(path=path, code_ary=self.code_ary)

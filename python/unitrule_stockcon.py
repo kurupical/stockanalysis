@@ -34,6 +34,7 @@ class UnitRule_Stockcon_Bundle:
         x = np.array([[[]]])
         y = np.array([[]])
         ary = []
+        convert_x = []
         length_stockdata = len(stockdata_ary)
         for i in range(length_stockdata):
             target_x, target_y = stockdata_ary[i]
@@ -51,7 +52,7 @@ class UnitRule_Stockcon_Bundle:
             data_y = target_y
 
             # numpy型に変換
-            data_x = np.array(data_x).reshape(1, len(data_x), len(data_x[0]), len(data_x[0][0]))
+            data_x = np.array(data_x).reshape(len(data_x), len(data_x[0]), len(data_x[0][0]))
             data_y = np.array(data_y).reshape(len(data_y), len(data_y[0]))
 
             if is_empty : #配列が空
@@ -63,7 +64,13 @@ class UnitRule_Stockcon_Bundle:
                 y = np.concatenate((y, data_y), axis=0)
 
 
-        convert_x = x.reshape(len(y), len(x[0,0]), length_stockdata)
+        length_1dim = len(x)
+        for i in range(length_stockdata):
+            for k in range(int(length_1dim / length_stockdata)):
+                convert_x.append(x[i + length_stockdata * k])
+
+        convert_x = np.array(convert_x)
+        convert_x = convert_x.reshape(len(y), length_stockdata, len(x[0]))
         # 多項目を扱うときはこっち（今は終値のみしか対応していません！）
         # convert_x = x.reshape(len(y), len(x[0,0]), length_stockdata, len(x[0][0][0]))
 
