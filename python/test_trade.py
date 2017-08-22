@@ -25,7 +25,7 @@ def read_ini(file):
     config.read(file)
     # Predicterの作成
     codes = config['param']['codes']
-    codes = common.str_to_list(str=codes, split_char="\n")
+    codes = common.str_to_list(str=codes, split_char=",")
     start_money = int(config['param']['start_money'])
     start_date = config['param']['start_date']
     test_term = int(config['param']['test_term'])
@@ -83,12 +83,12 @@ if __name__ == "__main__":
             codes, start_money, start_date, test_term, predicter, tradealgos, assetmng = read_ini(ini_file)
 
             # Controllerの設定
-            trade_con = trade.TradeController(start_money, assetmng)
             stock_con = learn.StockController()
             stock_con.load()
             charts = []
             for code in codes:
-                charts.append(Chart(code, stock_con, date_from, date_to)))
+                charts.append(trade.Chart(code=code, stock_con=stock_con, date_from=start_date))
+            trade_con = trade.TradeController(start_money, assetmng, charts)
 
             for code in codes:
                 trade_obj = trade.Trade(code=int(code), tradealgo=tradealgos, predicter=predicter, stock_con=stock_con, date_to=start_date)

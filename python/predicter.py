@@ -17,7 +17,7 @@ class Predicter:
             self.layer = int(config['param']['layer'])
             self.learning_rate = float(config['param']['learning_rate'])
             self.key = config['param']['key']
-            self.codes = config['param']['codes'].split
+            self.codes = config['param']['codes'].split(",")
 
             network = Network(unit=self.unit,
                               n_in=self.n_in,
@@ -65,3 +65,4 @@ class Predicter_Nto1Predict_MaxMin(Predicter):
         super().__init__(path_ary)
 
     def predict(self, chart, code_ary):
+        print("making now")

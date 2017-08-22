@@ -12,7 +12,7 @@ class TradeController:
     '''
     株の保有状況や利益などを管理する。
     '''
-    def __init__(self, init_money, assetmng):
+    def __init__(self, init_money, assetmng, charts):
         '''
             holdstock
                 'id': 取引ID,
@@ -36,8 +36,13 @@ class TradeController:
         self.charts = charts
         self.trade_ary = []
 
-    def add_trade(self,trade_obj):
+    def add_trade(self, trade_obj):
         self.trade_ary.append(trade_obj)
+
+    def get_chart(self, code):
+        for chart in charts:
+            if chart.code == code:
+                return chart
 
     def forward_1day(self):
         for chart in self.charts:
@@ -55,7 +60,8 @@ class TradeController:
                         df_holdstock, df_history = trade_obj.buy(id=self.id,
                                                                 amount=amount,
                                                                 limit_price=limit_price,
-                                                                stop_loss=stop_loss)
+                                                                stop_loss=stop_loss,
+                                                                chart=self.get_chart(trade_obj.code))
                         self.money -= df_history['price'].values * df_history['amount'].values
                         self.holdstock = pd.concat([self.holdstock, df_holdstock])
                         self.trade_history = pd.concat([self.history, df_history])
@@ -155,12 +161,12 @@ class Trade:
     def decide_trade(self, predict_term, charts):
         return self.decider.decide_trade(predict_term=predict_term, charts=charts)
 
-    def buy(self, id, amount, limit_price, stop_loss):
+    def buy(self, id, amount, limit_price, stop_loss, chart):
         '''
         引数amountだけ株を買う。
         指値limit_price, 逆指値stop_lossを設定する。
         '''
-        next = self.chart.get_next_date()
+        next = chart.get_next_data()
         # 保有銘柄数の更新
         #DataFrameの初期設定+columnsの順番指定ー＞メモに残したらこのコメント消す
         df_hold = pd.DataFrame({ 'id': id,
@@ -183,7 +189,7 @@ class Trade:
         return df_hold, df_history
 
     def sell(self, amount):
-        next = self.chart.get_next()
+        next = chart.get_next()
         df_history = pd.DataFrame({ 'id': id,
                                     'code': self.code,
                                     'date': next['日付'],
@@ -280,7 +286,7 @@ class Chart:
         '''
         翌営業日のデータを取得し、self.dataに格納
         '''
-        next = self.get_next_date()
+        next = self.get_next_data()
         self.df_data = pd.concat([self.df_data, next])
 
     def get_today_date(self):
@@ -294,7 +300,7 @@ class Chart:
             data_today = int(self.stock_obj.stdconv.unstd(today_price))
         return data_today
 
-    def get_next_date(self):
+    def get_next_data(self):
         '''
         翌営業日のデータを返す
         '''
