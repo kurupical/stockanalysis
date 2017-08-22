@@ -72,11 +72,13 @@ class StockController:
                  csv_path,
                  unitrule_stock,
                  unitrule_stockcon,
+                 stock_info,
                  input_items,
                  output_items):
         self.csv_path = csv_path
         self.unitrule_stock = unitrule_stock
         self.unitrule_stockcon = unitrule_stockcon
+        self.stock_info = stock_info
         self.input_items = input_items
         self.output_items = output_items
         self.stockdata = [] # Stockオブジェクトを格納するlist
@@ -142,15 +144,36 @@ class StockController:
         amount_of_search = len(self.stockdata)
 
         for stock_obj in self.stockdata:
-            stock_obj.all_data = stock_obj.all_data[stock_obj.all_data["時価総額"] <= max_value]
-            stock_obj.all_data = stock_obj.all_data[stock_obj.all_data["時価総額"] >= max_value]
-            stock_obj.data = pd.DataFrame(stock_obj.all_data["終値"])
-            print(stock_obj.data)
-            print("making now")
-            # 時価総額という項目はない。
+            df = self.stock_info.get_info(code=stock_obj.code)
+            # 発行済株数
+            if df["一株当り純利益"].values == 0:
+                print("error! 一株あたり純利益データなし: code=", str(stock_obj.code))
+            elif len(df.index) == 0:
+                print("error! 銘柄データなし: code=", str(stock_obj.code))
+            elif len(df.index) > 1:
+                print("error! 銘柄データ複数: code=", str(stock_obj.code))
+            else:
+                #　本来はここでreplaceではない。。（csvがすでに綺麗な形になっているのがベスト）
+                issued = float(max(df["純利益"].values).replace(",", "").replace(" ", "")) \
+                        / float(max(df["一株当り純利益"].values).replace(",", ""))
+                # 末尾の株価
+                value = stock_obj.stdconv.unstd(stock_obj.all_data["終値"].values)
+                value = float(value[-1])
+                if (issued * value > min_value and issued * value < max_value):
+                    ary.append(stock_obj)
+                    print("capOK! code:" + str(stock_obj.code) + " value:" + str(value), " issued:" + str(issued))
+
+        self.stockdata = ary
+
+        print("search_isinrange_marketcap 結果:\n")
+        print("*******************************************")
+        print("分析銘柄数:", amount_of_search)
+        print("抽出銘柄数:", len(self.stockdata))
+        print("*******************************************")
 
     def search_is_YMDbefore(self, ymd):
         ary = []
+        amount_of_search = len(self.stockdata)
 
         for stock_obj in self.stockdata:
             date_num= date_to_num(ymd, "%Y/%m/%d")
@@ -158,7 +181,13 @@ class StockController:
             stock_obj.data = pd.DataFrame(stock_obj.all_data["終値"])
 
             ary.append(stock_obj)
+
         self.stockdata = ary
+        print("search_is_YMDbefore 結果:\n")
+        print("*******************************************")
+        print("分析銘柄数:", amount_of_search)
+        print("抽出銘柄数:", len(self.stockdata))
+        print("*******************************************")
 
     def search_isexist_past_Nday(self, n_day):
         '''
@@ -197,3 +226,21 @@ class StockController:
             stock_obj = self.stockdata[i]
             if stock_obj.code == code:
                 return stock_obj
+
+class StockInfo:
+    def __init__(self, path):
+        self.path = path
+        self._load_info()
+
+    def _load_info(self):
+        self.df_data = pd.read_csv(self.path)
+
+    def get_info(self, code, mode="recent"):
+        df = self.df_data[self.df_data["証券コード"] == code]
+        max_date = max(df["期末"])
+        if mode == "recent":
+            df = df[df["期末"] == max_date]
+            if len(df.index) > 1 :
+                df = df.loc[(df['連結個別'] == '連結')]
+
+        return df
