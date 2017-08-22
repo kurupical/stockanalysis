@@ -12,9 +12,12 @@ def test():
     forward_day = 30
     predict_mode = "max_min"
     # predict_mode = "normal"
-    csv_path = "../dataset/debug/test/"
+    csv_path = "../dataset/debug/stock_analysis/"
+    stockinfo_path = "../dataset/stock_info.csv"
     test_ratio = 0.8
     batch_size = 50
+    min_value = 0
+    max_value = 3.0*(10**10)
     input_items = ["終値"]
     output_items = ["終値"]
     n_day = 150
@@ -30,14 +33,16 @@ def test():
 
     unitrule_s = UnitRule_Stock_ForwardDay(unit_amount=unit_amount, forward_day=forward_day, predict_mode=predict_mode)
     unitrule_sc = UnitRule_Stockcon_Bundle()
+    stock_info = StockInfo(path=stockinfo_path)
     stock_con = StockController(csv_path=csv_path,
                                 unitrule_stock=unitrule_s,
                                 unitrule_stockcon=unitrule_sc,
+                                stock_info=stock_info,
                                 input_items=input_items,
                                 output_items=output_items)
     stock_con.load()
     # 学習データの絞り込み１　＠　時価総額 making now
-    # stock_con.search_isinrange_marketcap(min_value=0, max_vaule=30**11)
+    stock_con.search_isinrange_marketcap(min_value=min_value, max_value=max_value)
     # 学習データの絞り込み２　学習対象の日付
     stock_con.search_is_YMDbefore(ymd=YMDbefore)
     # 学習データの絞り込み３　＠　過去N日

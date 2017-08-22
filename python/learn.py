@@ -18,8 +18,8 @@ from tensorflow.contrib import rnn
 from tqdm import tqdm
 from sklearn.utils import shuffle
 
-TEST_MODE = False
-# TEST_MODE = True
+# TEST_MODE = False
+TEST_MODE = True
 
 if TEST_MODE:
     CSV_PATH = "../dataset/debug/stock_analysis/" #テスト
