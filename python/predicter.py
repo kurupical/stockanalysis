@@ -17,6 +17,7 @@ class Predicter:
             self.layer = int(config['param']['layer'])
             self.learning_rate = float(config['param']['learning_rate'])
             self.key = config['param']['key']
+            self.codes = config['param']['codes'].split
 
             network = Network(unit=self.unit,
                               n_in=self.n_in,
@@ -28,6 +29,10 @@ class Predicter:
                               key=self.key)
             network.load(path + "model.ckpt")
             self.network_ary.append(network)
+
+class Predicter_Normal(Predicter):
+    def __init__(self, path_ary):
+        super().__init__(path_ary)
 
     def predict(self, chart, predict_term=30):
         self.original = chart.df_data['終値'].values
@@ -51,3 +56,12 @@ class Predicter:
 
                 Z = np.copy(seq)
             self.predicted.append(predicted)
+
+class Predicter_Nto1Predict_MaxMin(Predicter):
+    '''
+    複数銘柄の値動きから1銘柄の未来N日間の終値の最大値、最小値を予想する
+    '''
+    def __init__(self, path_ary):
+        super().__init__(path_ary)
+
+    def predict(self, chart, code_ary):

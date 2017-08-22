@@ -9,6 +9,7 @@ import configparser as cfp
 import glob
 import os
 import re
+from predicter import *
 
 # constant
 TEST_PATH = "../test/trade/"
@@ -30,7 +31,7 @@ def read_ini(file):
     test_term = int(config['param']['test_term'])
     model_path_ary = config['param']['model_path_ary']
     model_path_ary = common.str_to_list(str=model_path_ary, split_char="\n")
-    predicter = trade.Predicter(model_path_ary)
+    predicter = Predicter_Normal(model_path_ary)
     # Algorithmの作成
     tradealgo_param_ary = config['param']['tradealgo_param_ary']
     tradealgo_param_ary = common.str_to_list(str=tradealgo_param_ary, split_char="\n")
@@ -80,12 +81,17 @@ if __name__ == "__main__":
             # iniファイルの読み込み
             ini_file = TEST_PATH + dir + "/testpattern.ini"
             codes, start_money, start_date, test_term, predicter, tradealgos, assetmng = read_ini(ini_file)
+
             # Controllerの設定
             trade_con = trade.TradeController(start_money, assetmng)
             stock_con = learn.StockController()
             stock_con.load()
+            charts = []
             for code in codes:
-                trade_obj = trade.Trade(code=int(code), tradealgo=tradealgos, predicter=predicter, stock_con=stock_con,date_to=start_date)
+                charts.append(Chart(code, stock_con, date_from, date_to)))
+
+            for code in codes:
+                trade_obj = trade.Trade(code=int(code), tradealgo=tradealgos, predicter=predicter, stock_con=stock_con, date_to=start_date)
                 trade_con.add_trade(trade_obj)
             for i in range(test_term):
                 trade_con.trade()

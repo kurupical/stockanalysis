@@ -33,19 +33,19 @@ class TradeController:
         self.id = 0
         self.total_profit = 0
         self.total_asset = init_money
-
+        self.charts = charts
         self.trade_ary = []
 
     def add_trade(self,trade_obj):
         self.trade_ary.append(trade_obj)
 
     def forward_1day(self):
-        for trade_obj in self.trade_ary:
-            trade_obj.chart.forward_1day()
+        for chart in self.charts:
+            chart.forward_1day()
 
     def trade(self):
         for trade_obj in self.trade_ary:
-            judgement = trade_obj.decide_trade(predict_term=30)
+            judgement = trade_obj.decide_trade(predict_term=30, charts=self.charts)
             # ---
             # amountの調整が必要ならここで
             # ---
@@ -149,12 +149,11 @@ class Trade:
     # →不要な気がする。消すかも
     def __init__(self, code, tradealgo, predicter, stock_con, date_from='1900/1/1', date_to='2099/12/31'):
         self.code = code
-        self.chart = Chart(code, stock_con, date_from, date_to)
         self.decider = \
             Decider(code, tradealgo, predicter)
 
-    def decide_trade(self, predict_term):
-        return self.decider.decide_trade(predict_term=predict_term, chart=self.chart)
+    def decide_trade(self, predict_term, charts):
+        return self.decider.decide_trade(predict_term=predict_term, charts=charts)
 
     def buy(self, id, amount, limit_price, stop_loss):
         '''
@@ -201,9 +200,9 @@ class Decider:
         self.tradealgo = tradealgo
         self.predicter = predicter
 
-    def decide_trade(self, predict_term, chart):
+    def decide_trade(self, predict_term, charts):
         # 売買を決定する
-        self.predicter.predict(chart=chart, predict_term=predict_term)
+        self.predicter.predict(charts=charts, predict_term=predict_term)
         trade_judge = []
         for algo in self.tradealgo:
             trade_judge.append(algo.judge())
@@ -216,8 +215,8 @@ class Predicter:
         for path in path_ary:
             # パラメータファイルを読む
             config = configparser.ConfigParser()
-            config.read(path + "model.ini")
-            self.unit = int(config['param']['unit'])
+            config.read(path + "model.ckpt.ini")
+            self.unit = int(config['param']['unit_amount'])
             self.n_in = int(config['param']['n_in'])
             self.n_out = int(config['param']['n_out'])
             self.n_hidden = int(config['param']['n_hidden'])

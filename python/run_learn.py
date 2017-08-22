@@ -17,7 +17,7 @@ def test():
     test_ratio = 0.8
     batch_size = 50
     min_value = 0
-    max_value = 3.0*(10**10)
+    max_value = 1.0*(10**10)
     input_items = ["終値"]
     output_items = ["終値"]
     n_day = 150
@@ -26,7 +26,7 @@ def test():
     clf = "GRU"
     learning_rate = 0.001
     key = None
-    epochs = 1000
+    epochs = 10000
     config_path = "net_config.ini"
     result_path = "../result/" + time.ctime().replace(" ", "_") + "/"
     YMDbefore = "2016/12/31"
@@ -49,8 +49,12 @@ def test():
     stock_con.search_isexist_past_Nday(n_day=n_day)
     x, y = stock_con.unit_data()
     # networkの作成
-    n_in = len(x[0][0])
+    n_in = len(x[0])
     n_out = len(y[0])
+    code_ary = []
+    for stock_obj in stock_con.stockdata:
+        code_ary.append(stock_obj.code)
+
     # 学習/保存
     network = Network_BasicRNN(unit_amount=unit_amount,
                                n_hidden=n_hidden,
@@ -68,7 +72,8 @@ def test():
                     test_ratio=test_ratio,
                     unit_amount=unit_amount,
                     batch_size=batch_size,
-                    result_path=result_path)
+                    result_path=result_path,
+                    code_ary=code_ary)
 
     learner.learn(epochs=epochs)
 
