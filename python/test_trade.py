@@ -65,6 +65,11 @@ def select_assetmng(assetmng_param):
     if assetmng_param[0] == "MustHave_Npercent_Money":
         return asset_manager.MustHave_Npercent_Money(n_percent=int(assetmng_param[1]))
 
+    if assetmng_param[0] == "MustnotBuy_Npercent_Per_stock":
+        return asset_manager.MustnotBuy_Npercent_Per_stock(n_percent=int(assetmng_param[1]))
+
+    if assetmng_param[0] == "MustnotBuy_LastBuyAfterNday":
+        return asset_manager.MustnotBuy_LastBuyAfterNday(n_day=int(assetmng_param[1]))
 
 if __name__ == "__main__":
 
