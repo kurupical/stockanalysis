@@ -124,5 +124,5 @@ class StdConverter:
         data_unstd = np.copy(data)
         for i in range(self.length):
             df = self._std_info[self._std_info["item"] == i]
-            data_unstd[:] = data_unstd[:] * df['std'].values + df['mean'].values
+            data_unstd = data_unstd * df['std'].values + df['mean'].values
         return data_unstd

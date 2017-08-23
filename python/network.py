@@ -19,6 +19,7 @@ class Network_BasicRNN:
             self.key = random.random()
         else:
             self.key = key
+        self.config_path = config_path
 
         # placeholderの宣言
         self.x = tf.placeholder(tf.float32, shape=[None, n_in, unit_amount])
@@ -122,7 +123,8 @@ class Network_BasicRNN:
                             'layer':            self.layer,
                             'learning_rate':    self.learning_rate,
                             'key':              self.key,
-                            'codes':            codes }
+                            'codes':            codes,
+                            'config_path':      self.config_path }
         with open(path + '.ini', 'w') as configfile:
             config.write(configfile)
 

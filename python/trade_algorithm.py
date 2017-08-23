@@ -1,6 +1,4 @@
 # stockanalysis library
-import trade
-import learn
 # common library
 import numpy as np
 import math

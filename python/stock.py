@@ -3,6 +3,7 @@ from tqdm import tqdm
 import pandas as pd
 import numpy as np
 from common import *
+from configparser import *
 
 class Stock:
     def __init__(self,
@@ -226,6 +227,26 @@ class StockController:
             stock_obj = self.stockdata[i]
             if stock_obj.code == code:
                 return stock_obj
+
+    def save_config(self, path):
+        config = ConfigParser()
+        # input_itemsをカンマ区切りで編集
+        input_items = ""
+        for item in self.input_items:
+            input_items = input_items + item + ","
+        # output_itemsをカンマ区切りで編集
+        output_items = ""
+        for item in self.output_items:
+            output_items = output_items + item + ","
+        config['param'] = { 'csv_path':          self.csv_path,
+                            'unitrule_stock':    self.unitrule_stock.__class__.__name__,
+                            'unitrule_stockcon': self.unitrule_stockcon.__class__.__name__,
+                            'stock_info_path':   self.stock_info.path,
+                            'input_items':       input_items,
+                            'output_items':      output_items}
+        with open(path + 'stock_con.ini', 'w') as configfile:
+            config.write(configfile)
+
 
 class StockInfo:
     def __init__(self, path):

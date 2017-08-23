@@ -2,13 +2,13 @@ from stock import *
 from unitrule_stock import *
 from unitrule_stockcon import *
 from network import *
-from learn2 import *
+from learn import *
 
 
 def test():
     # とりあえずなんか動かしたい時用
     # @param
-    unit_amount = 50
+    unit_amount = 48
     forward_day = 30
     predict_mode = "max_min"
     # predict_mode = "normal"
@@ -21,14 +21,14 @@ def test():
     input_items = ["終値"]
     output_items = ["終値"]
     n_day = 150
-    layer = 1
-    n_hidden = 30
+    layer = 2
+    n_hidden = 10
     clf = "GRU"
     learning_rate = 0.001
     key = None
-    epochs = 10000
-    config_path = "net_config.ini"
+    epochs = 10
     result_path = "../result/" + time.ctime().replace(" ", "_") + "/"
+    config_path = result_path + "net_config.ini"
     YMDbefore = "2016/12/31"
 
     unitrule_s = UnitRule_Stock_ForwardDay(unit_amount=unit_amount, forward_day=forward_day, predict_mode=predict_mode)
@@ -76,6 +76,7 @@ def test():
                     code_ary=code_ary)
 
     learner.learn(epochs=epochs)
+    stock_con.save_config(path=result_path)
 
 def main():
     # iniファイルから読むとかいう処理はこっちで後で書く

@@ -21,8 +21,8 @@ class MustHave_Npercent_Money:
         self.n_percent = n_percent
 
     def judge(self, trade_con, code, amount):
-        trade_obj = trade_con.get_trade_obj(code)
-        price_today = trade_obj.chart.get_today_price() * amount
+        chart = trade_con.get_chart(code)
+        price_today = chart.get_today_price() * amount
         asset_n_percent = trade_con.total_asset * self.n_percent / 100
 
         print("debug: total_asset=", trade_con.total_asset)
@@ -41,8 +41,8 @@ class MustnotBuy_Npercent_Per_stock:
         self.n_percent = n_percent
 
     def judge(self, trade_con, code, amount):
-        trade_obj = trade_con.get_trade_obj(code)
-        price_today = trade_obj.chart.get_today_price() * amount
+        chart = trade_con.get_chart(code)
+        price_today = chart.get_today_price() * amount
         asset_n_percent = trade_con.total_asset * self.n_percent / 100
 
         # 保有分＋今回購入した場合の金額を計算
@@ -68,10 +68,10 @@ class MustnotBuy_LastBuyAfterNday:
 
     def judge(self, trade_con, code, amount):
         if len(trade_con.holdstock) > 0:
-            trade_obj = trade_con.get_trade_obj(code)
+            chart = trade_con.get_chart(code)
             hold = trade_con.holdstock[trade_con.holdstock["code"] == code]
             max_date_of_hold = hold["date"].max()
-            today_date = trade_obj.chart.get_today_date()
+            today_date = chart.get_today_date()
             if max_date_of_hold + self.n_day > today_date:
                 return False
             else:

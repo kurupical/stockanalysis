@@ -3,9 +3,10 @@ import numpy as np
 import pandas as pd
 import configparser
 # stockanalysis_library
-import learn
-import common
-import trade_algorithm
+from common import *
+from trade_algorithm import *
+from network import *
+from stock import *
 MODEL_PATH = "../model/GNUexport/"
 
 class TradeController:
@@ -40,7 +41,7 @@ class TradeController:
         self.trade_ary.append(trade_obj)
 
     def get_chart(self, code):
-        for chart in charts:
+        for chart in self.charts:
             if chart.code == code:
                 return chart
 
@@ -75,7 +76,7 @@ class TradeController:
                         self._unhold(self.holdstock, code=df_history['code'], amount=df_history['amount'])
                     self.eval_asset()
             # test
-            print("日付:", common.num_to_date(trade_obj.chart.get_today_date(), format="%Y/%m/%d"))
+            print("日付:", num_to_date(self.get_chart(trade_obj.code).get_today_date(), format="%Y/%m/%d"))
 
     def _unhold(self, code, amount):
         '''
@@ -107,11 +108,12 @@ class TradeController:
             for key, holdstock in self.holdstock.iterrows():
                 trade_obj = self.get_trade_obj(holdstock["code"])
                 price_buy = holdstock['price']
-                price_today = trade_obj.chart.get_today_price()
+                chart = self.get_chart(holdstock["code"])
+                price_today = chart.get_today_price()
                 profit = (price_today - price_buy) * holdstock['amount']
                 # まだ変換されていない場合は変換する
                 if isinstance(holdstock['date'], float):
-                    date = common.num_to_date(holdstock['date'], '%Y/%m/%d')
+                    date = num_to_date(holdstock['date'], '%Y/%m/%d')
                 else:
                     date = holdstock['date']
                 value_today = price_today * holdstock['amount']
@@ -159,7 +161,7 @@ class Trade:
             Decider(code, tradealgo, predicter)
 
     def decide_trade(self, predict_term, charts):
-        return self.decider.decide_trade(predict_term=predict_term, charts=charts)
+        return self.decider.decide_trade(predict_term=predict_term, charts=charts, code=self.code)
 
     def buy(self, id, amount, limit_price, stop_loss, chart):
         '''
@@ -206,9 +208,9 @@ class Decider:
         self.tradealgo = tradealgo
         self.predicter = predicter
 
-    def decide_trade(self, predict_term, charts):
+    def decide_trade(self, predict_term, charts, code):
         # 売買を決定する
-        self.predicter.predict(charts=charts, predict_term=predict_term)
+        self.predicter.predict(charts=charts, predict_term=predict_term, code=code)
         trade_judge = []
         for algo in self.tradealgo:
             trade_judge.append(algo.judge())
@@ -231,14 +233,14 @@ class Predicter:
             self.learning_rate = float(config['param']['learning_rate'])
             self.key = config['param']['key']
 
-            network = learn.Network(unit=self.unit,
-                                    n_in=self.n_in,
-                                    n_out=self.n_out,
-                                    n_hidden=self.n_hidden,
-                                    clf=self.clf,
-                                    layer=self.layer,
-                                    learning_rate=self.learning_rate,
-                                    key=self.key)
+            network = Network(unit=self.unit,
+                              n_in=self.n_in,
+                              n_out=self.n_out,
+                              n_hidden=self.n_hidden,
+                              clf=self.clf,
+                              layer=self.layer,
+                              learning_rate=self.learning_rate,
+                              key=self.key)
             network.load(path + "model.ckpt")
             self.network_ary.append(network)
 
@@ -276,8 +278,8 @@ class Chart:
 
     def _get_data(self, date_from='1900/1/1', date_to='2099/12/31'):
         format = '%Y/%m/%d'
-        num_from = common.date_to_num(date_from, format)
-        num_to = common.date_to_num(date_to, format)
+        num_from = date_to_num(date_from, format)
+        num_to = date_to_num(date_to, format)
         df = self.df_all_data[self.df_all_data['日付'] >= num_from]
         df = df[df['日付'] <= num_to]
         return df
@@ -313,7 +315,7 @@ class Chart:
 def test():
     path_ary = ["../model/1301single/"]
     predicter = Predicter(path_ary=path_ary)
-    tradealgo = [trade_algorithm.UpDown_Npercent(predicter, 10)]
+    tradealgo = [UpDown_Npercent(predicter, 10)]
     trade = Trade(code=1301, tradealgo=tradealgo, predicter=predicter, stock_con=stock_con,date_to='2016/12/31')
     trade_con = TradeController(1000000)
     trade_con.add_trade(trade)
@@ -331,7 +333,7 @@ def test():
 if __name__ == "__main__":
     print("making now!")
 
-    stock_con = learn.StockController()
+    stock_con = StockController()
     stock_con.load()
     #test
     test()

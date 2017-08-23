@@ -62,7 +62,8 @@ class Learn:
         self._save(str(epoch) + "_final")
 
     def _save(self, epoch):
-            path = self.result_path + "/" + str(epoch) + "/"
-            os.mkdir(path)
-            path = path + "model.ckpt"
-            self.network.save(path=path, code_ary=self.code_ary)
+        # ネットワーク情報
+        path = self.result_path + "/" + str(epoch) + "/"
+        os.mkdir(path)
+        path_model = path + "model.ckpt"
+        self.network.save(path=path_model, code_ary=self.code_ary)
