@@ -4,6 +4,10 @@ import pandas as pd
 import numpy as np
 import urllib.request
 import time
+import datetime
+import os
+from configparser import *
+
 
 DATASET_PATH = "../dataset/"
 
@@ -66,6 +70,52 @@ def str_to_list(str, split_char):
     文字列strを文字split_charごとに切り分けた配列にして返す
     '''
     return [x for x in str.split(split_char) if len(x) != 0]
+
+def make_log(log_path, log_header=None, config_path="work_config/outputlog.ini"):
+    '''
+    ログ出力先を設定し、ログファイルを作成する。
+    ログファイルのヘッダに、指定した文字列(log_header)を出力する。
+    '''
+    # configファイルの作成
+    config = ConfigParser()
+    config['param'] = { 'log_path':  log_path }
+    with open(config_path, 'w') as configfile:
+        config.write(configfile)
+
+    # logファイルの作成/書き込み
+    if os.path.exists(log_path):
+        file = open(log_path, 'a')
+    else:
+        file = open(log_path, 'w')
+
+    now = datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
+
+    file.write("==========================================================\n")
+    file.write("start:" + str(now) + "\n")
+    file.write(log_header + "\n")
+    file.write("==========================================================\n")
+    file.close()
+
+def output_log(log, object=None, config_path="work_config/outputlog.ini"):
+    '''
+    ログを出力する。
+    　time[class]:log
+    '''
+
+    # make_logconfで作成したconfigファイルの読み込み
+    config = ConfigParser()
+    config.read(config_path)
+    log_path = config['param']['log_path']
+
+    # ログ出力内容の編集
+    now = datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
+    if object is not None:
+        object = object.__class__.__name__
+
+    # ログ出力
+    file = open(log_path, 'a')
+    file.write(str(now) +  " [" + str(object) + "] " + log + "\n")
+    file.close()
 
 class TimeMeasure:
     def __init__(self):

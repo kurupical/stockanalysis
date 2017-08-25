@@ -4,6 +4,8 @@ from trade_algorithm import *
 from asset_manager import *
 from common import *
 from stock import *
+from unitrule_stock import *
+from unitrule_stockcon import *
 # common library
 from configparser import *
 import glob
@@ -120,6 +122,7 @@ if __name__ == "__main__":
         if os.path.isdir(TEST_PATH + dir) and re.match(r"(.*)_test", dir) is not None:
             # iniファイルの読み込み
             ini_file = TEST_PATH + dir + "/testpattern.ini"
+            make_log(log_path=TEST_PATH + dir + "/result_log.log", log_header="test!!\n")
             codes, start_money, start_date, test_term, predicter, tradealgos, assetmng = read_testpattern_ini(ini_file)
             # Controllerの設定
             stock_con = read_stockcon_ini(TEST_PATH + dir + "/stock_con/stock_con.ini")
