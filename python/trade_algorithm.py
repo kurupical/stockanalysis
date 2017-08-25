@@ -44,6 +44,7 @@ class UpDown_Npercent:
             stop_loss = 0
 
         # ログ出力
+        '''
         log = "\ncode:" + self.predicter.chart.code + \
               "/ date:" + self.predicter.chart.get_today_date() + \
               "/ end_val:" + str(org_unstd[-1]) + \
@@ -53,5 +54,5 @@ class UpDown_Npercent:
               "/ limit_price:" + str(limit_price) + \
               "/ stop_loss:" + str(stop_loss)
         output_log(log=log, object=self)
-
+        '''
         return judge, amount, limit_price, stop_loss
