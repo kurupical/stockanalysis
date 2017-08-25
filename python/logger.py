@@ -1,5 +1,6 @@
 
 class Logger:
+
     def __init__(self, path, obj):
         self.path = path
         self.obj = obj
