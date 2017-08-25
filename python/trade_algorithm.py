@@ -1,4 +1,5 @@
 # stockanalysis library
+from common import *
 # common library
 import numpy as np
 import math
@@ -29,17 +30,28 @@ class UpDown_Npercent:
             if org_unstd[-1] * (1 - self.n_percent/100) > np.min(pred_unstd):
                 sell += 1
 
-        if buy - sell >= math.floor(total):
+
+        if buy - sell >= math.floor(total/2):
             judge = "buy"
             amount = 100
             limit_price = int(org_unstd[-1] * (1 + self.n_percent/100))
             stop_loss = int(org_unstd[-1] * (1 - self.n_percent/100))
 
-        if sell - buy >= math.floor(total):
+        if sell - buy >= math.floor(total/2):
             judge = "sell"
             amount = 100
             limit_price = 0
             stop_loss = 0
 
+        # ログ出力
+        log = "\ncode:" + self.predicter.chart.code + \
+              "/ date:" + self.predicter.chart.get_today_date() + \
+              "/ end_val:" + str(org_unstd[-1]) + \
+              "/ predict_max:" + str(pred_unstd[0]) + \
+              "/ judge:" + judge + \
+              "/ amount:" + str(amount) + \
+              "/ limit_price:" + str(limit_price) + \
+              "/ stop_loss:" + str(stop_loss)
+        output_log(log=log, object=self)
 
         return judge, amount, limit_price, stop_loss
