@@ -31,6 +31,8 @@ def test():
     config_path = result_path + "net_config.ini"
     YMDbefore = "2016/12/31"
 
+    Configuration.log_path = result_path
+
     unitrule_s = UnitRule_Stock_ForwardDay(unit_amount=unit_amount, forward_day=forward_day, predict_mode=predict_mode)
     unitrule_sc = UnitRule_Stockcon_Bundle()
     stock_info = StockInfo(path=stockinfo_path)
@@ -63,8 +65,7 @@ def test():
 
     # 学習
     code_ary = stock_con.get_stockcode_ary()
-    learner = Learn(x=stock_con.data_x,
-                    y=stock_con.data_y,
+    learner = Learn(stock_con=stock_con,
                     network=network,
                     test_ratio=test_ratio,
                     unit_amount=unit_amount,

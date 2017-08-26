@@ -8,17 +8,17 @@ from sklearn.cross_validation import train_test_split
 import os
 
 class Learn:
-    def __init__(self, x, y, network, test_ratio, unit_amount, batch_size, result_path, code_ary):
-        self.x = x
-        self.y = y
+    def __init__(self, stock_con, network, test_ratio, unit_amount, batch_size, result_path, code_ary):
+        self.x = stock_con.data_x
+        self.y = stock_con.data_y
         self.network = network
         self.test_ratio = test_ratio
         self.unit_amount = unit_amount
         self.batch_size = batch_size
-        self.n_in = len(x[0])
-        self.n_out = len(y[0])
-        self.N_train = int(len(x) * test_ratio)
-        self.N_validation = len(x) - self.N_train
+        self.n_in = len(self.x[0])
+        self.n_out = len(self.y[0])
+        self.N_train = int(len(self.x) * test_ratio)
+        self.N_validation = len(self.x) - self.N_train
         self.history = {
             'val_loss': []
         }
@@ -27,7 +27,7 @@ class Learn:
             os.mkdir(self.result_path)
 
         self.X_train, self.X_validation, self.Y_train, self.Y_validation = \
-            train_test_split(x, y, test_size=self.N_validation)
+            train_test_split(self.x, self.y, test_size=self.N_validation)
 
         self.n_batches = self.N_train // self.batch_size
         self.code_ary = code_ary
