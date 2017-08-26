@@ -47,15 +47,10 @@ def test():
     stock_con.search_is_YMDbefore(ymd=YMDbefore)
     # 学習データの絞り込み３　＠　過去N日
     stock_con.search_isexist_past_Nday(n_day=n_day)
-    x, y = stock_con.unit_data()
+    stock_con.unit_data()
     # networkの作成
-    n_in = len(x[0])
-    n_out = len(y[0])
-    code_ary = []
-    for stock_obj in stock_con.stockdata:
-        code_ary.append(stock_obj.code)
-
-    # 学習/保存
+    n_in = len(stock_con.data_x[0])
+    n_out = len(stock_con.data_y[0])
     network = Network_BasicRNN(unit_amount=unit_amount,
                                n_hidden=n_hidden,
                                n_in=n_in,
@@ -66,8 +61,10 @@ def test():
                                key=key,
                                config_path=config_path)
 
-    learner = Learn(x=x,
-                    y=y,
+    # 学習
+    code_ary = stock_con.get_stockcode_ary()
+    learner = Learn(x=stock_con.data_x,
+                    y=stock_con.data_y,
                     network=network,
                     test_ratio=test_ratio,
                     unit_amount=unit_amount,

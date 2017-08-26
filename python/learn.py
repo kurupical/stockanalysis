@@ -1,4 +1,8 @@
+# stockanalysis library
 from common import *
+from configuration import *
+from logger import *
+# common library
 from sklearn.utils import shuffle
 from sklearn.cross_validation import train_test_split
 import os
@@ -27,6 +31,8 @@ class Learn:
 
         self.n_batches = self.N_train // self.batch_size
         self.code_ary = code_ary
+
+        self.logger = Logger(Configuration.log_path)
 
     def learn(self, epochs):
         timetotal = TimeMeasure()

@@ -212,21 +212,28 @@ class StockController:
 
 
     def unit_data(self):
-        x, y = self.unitrule_stockcon.unit(self.stockdata)
+        self.data_x, self.data_y = self.unitrule_stockcon.unit(self.stockdata)
 
         print("unit_data 結果:\n")
         print("*******************************************")
         print("分析銘柄数:", len(self.stockdata))
-        print("入力データ:", len(x))
+        print("入力データ:", len(self.data_x))
         print("*******************************************")
-
-        return x, y
 
     def get_data(self, code):
         for i in range(len(self.stockdata)):
             stock_obj = self.stockdata[i]
             if stock_obj.code == code:
                 return stock_obj
+
+    def get_stockcode_ary(self):
+        '''
+        StockControllerが持っているStockオブジェクトのコードを返す
+        '''
+        code_ary = []
+        for stock_obj in self.stockdata:
+            code_ary.append(stock_obj.code)
+        return code_ary
 
     def save_config(self, path):
         config = ConfigParser()
