@@ -8,7 +8,7 @@ from learn import *
 def test():
     # とりあえずなんか動かしたい時用
     # @param
-    unit_amount = 200
+    unit_amount = 50
     forward_day = 30
     predict_mode = "max_min"
     # predict_mode = "normal"
@@ -20,7 +20,7 @@ def test():
     max_value = 1.0*(10**10)
     input_items = ["終値"]
     output_items = ["終値"]
-    n_day = 300
+    n_day = 100
     layer = 3
     n_hidden = 20
     clf = "GRU"

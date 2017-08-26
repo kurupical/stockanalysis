@@ -70,7 +70,7 @@ class Predicter_Nto1Predict_MaxMin(Predicter):
 
     def predict(self, charts, code, predict_term=None):
         input_data = []
-        predicted = []
+        predicted = [[]]
         for chart in charts:
             data = chart.df_data['終値'].values
             input_data.append(data[:self.unit_amount])
@@ -91,4 +91,4 @@ class Predicter_Nto1Predict_MaxMin(Predicter):
                 network.n_batch: 1
             })
             predicted = y_.reshape(-1)
-        self.predicted = predicted
+        self.predicted = np.array(predicted).reshape(-1, self.n_out)
