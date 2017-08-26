@@ -71,18 +71,20 @@ class Predicter_Nto1Predict_MaxMin(Predicter):
     def predict(self, charts, code, predict_term=None):
         input_data = []
         predicted = [[]]
+
         for chart in charts:
-            data = chart.df_data['終値'].values
-            input_data.append(data[:self.unit_amount])
-            # 予想するチャート
             if chart.code == code:
                 self.chart = chart
+            else:
+                data = chart.df_data['終値'].values
+                input_data.append(data[:self.unit_amount])
 
-        # 予想する銘柄の値動き
         self.original = self.chart.df_data['終値'].values
-        self.original = self.original[:self.unit_amount].reshape(self.unit_amount)
+        original = self.original[:self.unit_amount].reshape(1, -1)
         input_data = np.array(input_data)
-        Z = input_data.reshape(1, self.n_in, self.unit_amount)
+        marge_data = np.concatenate((original, input_data), axis=0)
+        # 予想対象の銘柄を先頭にする
+        Z = marge_data.reshape(1, self.n_in, self.unit_amount)
 
         for network in self.network_ary:
             z_ = Z[-1:]

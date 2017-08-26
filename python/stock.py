@@ -55,8 +55,7 @@ class Stock:
 
     def unit(self):
         ary = self.data.values
-        x, y = self.unitrule_stock.unit(self)
-        return x, y
+        self.x, self.y, self.tag = self.unitrule_stock.unit(self)
 
     # def convertupdownratio(self, ary):
 
@@ -212,7 +211,7 @@ class StockController:
 
 
     def unit_data(self):
-        self.data_x, self.data_y = self.unitrule_stockcon.unit(self.stockdata)
+        self.data_x, self.data_y, self.tag = self.unitrule_stockcon.unit(self.stockdata)
 
         print("unit_data 結果:\n")
         print("*******************************************")

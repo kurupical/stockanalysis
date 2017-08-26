@@ -19,9 +19,11 @@ class UnitRule_Stockcon_Bundle:
             x 銘柄ごと/期間ごとの株価
         '''
         stockdata_ary = []
+        tag_ary = []
         for stock_obj in stock_obj_ary:
-            x, y = stock_obj.unit()
-            stockdata_ary.append([x, y])
+            stock_obj.unit()
+            stockdata_ary.append([stock_obj.x, stock_obj.y])
+            tag_ary.append(stock_obj.tag)
         '''
         stockdata_ary[][][][]
             １次元目 : 銘柄ごとのインデックス
@@ -74,4 +76,4 @@ class UnitRule_Stockcon_Bundle:
         # 多項目を扱うときはこっち（今は終値のみしか対応していません！）
         # convert_x = x.reshape(len(y), len(x[0,0]), length_stockdata, len(x[0][0][0]))
 
-        return convert_x, y
+        return convert_x, y, tag_ary
