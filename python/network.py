@@ -2,7 +2,50 @@ import tensorflow as tf
 import random
 from configparser import *
 
-class Network_BasicRNN:
+class Network:
+    @staticmethod
+    def read_network(path_ary):
+        '''
+        ckptファイルからネットワークを読み込む。
+        '''
+        network_ary = []
+        for path in path_ary:
+            config = ConfigParser()
+            config.read(path + "model.ckpt.ini")
+            if config['param']['network_model'] == "Network_BasicRNN":
+                network_ary.append(Network_BasicRNN.read_network(config=config, path=path))
+
+        return network_ary
+
+class Network_BasicRNN(Network):
+    @staticmethod
+    def read_network(config, path):
+        '''
+        ckptファイルからネットワークを読み込む。
+        '''
+        unit_amount = int(config['param']['unit_amount'])
+        n_in = int(config['param']['n_in'])
+        n_out = int(config['param']['n_out'])
+        n_hidden = int(config['param']['n_hidden'])
+        clf = config['param']['clf']
+        layer = int(config['param']['layer'])
+        learning_rate = float(config['param']['learning_rate'])
+        key = config['param']['key']
+        codes = config['param']['codes'].split(",")
+        config_path = config['param']['config_path']
+
+        network = Network_BasicRNN(unit_amount=unit_amount,
+                                   n_in=n_in,
+                                   n_out=n_out,
+                                   n_hidden=n_hidden,
+                                   clf=clf,
+                                   layer=layer,
+                                   learning_rate=learning_rate,
+                                   key=key,
+                                   config_path=config_path)
+        network.load(path + "model.ckpt")
+        return network
+
     def __init__(self, unit_amount, n_hidden, n_in, n_out, clf, layer, learning_rate, key=None, config_path=None):
         '''
             clf : ネットワークの種類(RNN/LSTM/GRU)
@@ -124,7 +167,8 @@ class Network_BasicRNN:
                             'learning_rate':    self.learning_rate,
                             'key':              self.key,
                             'codes':            codes,
-                            'config_path':      self.config_path }
+                            'config_path':      self.config_path,
+                            'network_model':    self.__class__.__name__  }
         with open(path + '.ini', 'w') as configfile:
             config.write(configfile)
 

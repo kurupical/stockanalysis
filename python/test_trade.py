@@ -34,7 +34,8 @@ def read_testpattern_ini(file):
     # Predicterの作成
     model_path_ary = config['param']['model_path_ary']
     model_path_ary = str_to_list(str=model_path_ary, split_char="\n")
-    predicter = Predicter_Nto1Predict_MaxMin(model_path_ary)
+    network_ary = Network.read_network(path_ary=model_path_ary)
+    predicter = Predicter.generate_predicter(predicter_model="Predicter_Nto1Predict_MaxMin", network_ary=network_ary)
     # Algorithmの作成
     tradealgo_param_ary = config['param']['tradealgo_param_ary']
     tradealgo_param_ary = str_to_list(str=tradealgo_param_ary, split_char="\n")
