@@ -68,9 +68,8 @@ class UnitRule_Stock_ForwardDay:
         # 銘柄
         code = int(df.loc["証券コード"])
 
-        df = pd.DataFrame({ 'start_date': start_date,
-                            'start_idx': start_idx,
-                            'code': code,
-                            'unit_amount': unit_amount},
-                            columns= ['start_date', 'code', 'unit_amount'])
+        df = pd.DataFrame({ 'start_date': [start_date],
+                            'start_idx': [start_idx],
+                            'code': [code],
+                            'unit_amount': [unit_amount]})
         return df

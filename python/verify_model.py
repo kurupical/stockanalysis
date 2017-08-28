@@ -1,4 +1,10 @@
+# stockanalysis library
+from predicter import *
+from trade import *
+# common library
 from random import *
+from copy import *
+import matplotlib.pyplot as plt
 
 class VerifyModel:
     '''
@@ -8,28 +14,72 @@ class VerifyModel:
         self.network = network
         self.stock_con = stock_con
 
-    def maxmin_graph_verify(self, times):
+    def get_random_datefrom(self):
+        stock_obj = self.stock_con.stockdata[0]
+
+        w_df = stock_obj.all_data["日付"].head(len(stock_obj.x))
+        choice_date = np.random.choice(w_df.values, 1)
+
+        # 数値型で返す
+        return choice_date[0]
+
+    def maxmin_graph_verify(self, times, date_from, path):
+
+        date_format="%Y/%m/%d"
+
+        # 数値で来た場合は日付に変換
+        if date_from.__class__.__name__ != "str":
+            date_from = num_to_date(num=date_from, format=date_format)
+
         for i in range(times):
-            idx = randint(0, len(stock_con.stockdata[0].data_x)
-            for stock_obj in stock_con.stockdata:
-                # テスト項目の設定
-                x = stock_obj.data_x[idx]
+            # predicterの作成
+            predicter = Predicter.generate_predicter(model="Predicter_Nto1Predict_MaxMin",
+                                                     network_ary=[self.network])
+            # chartの作成
+            charts = []
+            for stock_obj in self.stock_con.stockdata:
+                # from_dateを起点とし指定した日数分のチャートを生成
+                w_df = stock_obj.all_data[stock_obj.all_data["日付"] >= date_to_num(date=date_from, format=date_format)]
+                unit_amount = stock_obj.unitrule_stock.unit_amount
+                date_to = w_df["日付"].values[unit_amount]
+                date_to = num_to_date(num=date_to, format=date_format)
 
-            # 予測(max_min)
-            predicted = _predict(x)
+                chart = Chart(stock_obj=stock_obj,
+                              date_from=date_from,
+                              date_to=date_to)
+                charts.append(chart)
 
-            # 実値()
-            actual = _actual(x)
+            # 各銘柄の予実を表示
+            for stock_obj in self.stock_con.stockdata:
+                # 予想
+                predicted = predicter.predict(charts=charts,
+                                              code=stock_obj.code)
 
-    def _predict(self, x):
-        Z = x.reshape(1, network.self_in, network.unit_amount)
+                # 実績(forward_day分だけ進める)
+                forward_day = stock_obj.unitrule_stock.forward_day
+                ary = []
+                chart = Chart.get_chart(charts=charts, code=stock_obj.code)
+                for i in range(forward_day):
+                    chart.forward_1day()
 
-        z_ = Z[-1:]
-        y_ = self.network.y.eval(session=self.network.sess, feed_dict={
-            network.x: Z[-1:],
-            network.n_batch: 1
-        })
-
-        return y_.reshape(-1)
-
-    def _actual(self, x, tag):
+                # 表示(グラフ)
+                data = chart.get_value_data()
+                max_min = stock_obj.stdconv.unstd(predicter.predicted)
+                max_value = np.max(max_min)
+                min_value = np.min(max_min)
+                plt.figure()
+                title = "Code=", stock_obj.code
+                plt.title = "a"#, "start_date=", int(np.min(data["日付"].values))
+                plt.plot(data["終値"].values, color='black', label="end_value")
+                plt.legend()
+                plt.xlabel('date')
+                plt.ylabel('value')
+                x_max = len(chart.get_value_data())
+                x_min = x_max - forward_day
+                plt.hlines([min_value, max_value], x_min, x_max, linestyles="dashed")
+                filename = path + str(stock_obj.code) + ".jpeg"
+                plt.savefig(filename)
+                plt.show()
+                print("code:", stock_obj.code)
+                print("max_min:", stock_obj.stdconv.unstd(predicter.predicted))
+                print("実値:", chart.get_value_data())

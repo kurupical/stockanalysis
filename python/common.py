@@ -43,7 +43,7 @@ def date_to_num(date, format):
 
 def num_to_date(num, format):
 
-    date = dt.datetime(1899, 12, 31) + dt.timedelta(days=num)
+    date = dt.datetime(1899, 12, 31) + dt.timedelta(days=int(num))
     return date.strftime(format)
 
 def get_stockscode():

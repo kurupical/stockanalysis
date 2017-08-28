@@ -5,14 +5,14 @@ from learn import *
 
 class Predicter:
     @staticmethod
-    def generate_predicter(predicter_model, network_ary):
+    def generate_predicter(model, network_ary):
         '''
         指定されたpredicter_modelのPredicterクラスを生成する
         (あとで Predicter_Controllerを作成する(#49))
         '''
-        if predicter_model == "Predicter_Normal":
+        if model == "Predicter_Normal":
             return Predicter_Normal(network_ary)
-        if predicter_model == "Predicter_Nto1Predict_MaxMin":
+        if model == "Predicter_Nto1Predict_MaxMin":
             return Predicter_Nto1Predict_MaxMin(network_ary)
 
     # 予想機

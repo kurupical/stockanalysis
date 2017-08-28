@@ -2,6 +2,7 @@
 from common import *
 from configuration import *
 from logger import *
+from verify_model import *
 # common library
 from sklearn.utils import shuffle
 from sklearn.cross_validation import train_test_split
@@ -11,6 +12,7 @@ class Learn:
     def __init__(self, stock_con, network, test_ratio, unit_amount, batch_size, result_path, code_ary):
         self.x = stock_con.data_x
         self.y = stock_con.data_y
+        self.stock_con = stock_con
         self.network = network
         self.test_ratio = test_ratio
         self.unit_amount = unit_amount
@@ -64,12 +66,22 @@ class Learn:
             timelap.reset()
 
             if (epoch+1) % 1000 == 0:
-                self._save(epoch)
-        self._save(str(epoch) + "_final")
+                self._output_result(epoch)
 
-    def _save(self, epoch):
-        # ネットワーク情報
+        self._output_result(epoch)
+
+    def _output_result(self, epoch):
         path = self.result_path + "/" + str(epoch) + "/"
         os.mkdir(path)
+        self._save(epoch, path)
+        self._verify_model(epoch, path)
+
+    def _save(self, epoch, path):
+        # ネットワーク情報
         path_model = path + "model.ckpt"
         self.network.save(path=path_model, code_ary=self.code_ary)
+
+    def _verify_model(self, epoch, path):
+        verifier = VerifyModel(network=self.network, stock_con=self.stock_con)
+        date_from = verifier.get_random_datefrom()
+        verifier.maxmin_graph_verify(times=1, date_from=date_from, path=path)

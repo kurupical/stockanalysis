@@ -66,7 +66,6 @@ class Stock:
             # 未実装
             return None
 
-
 class StockController:
     def __init__(self,
                  csv_path,

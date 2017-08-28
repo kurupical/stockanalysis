@@ -9,6 +9,7 @@ from network import *
 from stock import *
 from configuration import *
 from logger import *
+from copy import *
 
 MODEL_PATH = "../model/GNUexport/"
 
@@ -221,9 +222,15 @@ class Decider:
 
 class Chart:
     # 株の時系列データを持つ
-    def __init__(self, code, stock_con, date_from='1900/1/1', date_to='2099/12/31'):
-        self.code = code
-        self.stock_obj = stock_con.get_data(code)
+    @staticmethod
+    def get_chart(charts, code):
+        for chart in charts:
+            if int(chart.code) == int(code):
+                return chart
+
+    def __init__(self, stock_obj, date_from='1900/1/1', date_to='2099/12/31'):
+        self.code = stock_obj.code
+        self.stock_obj = stock_obj
         self.df_all_data = self.stock_obj.all_data
         self.df_data = self._get_data(date_from=date_from, date_to=date_to)
 
@@ -262,6 +269,17 @@ class Chart:
         date_tomorrow = min(df_after_tomorrow['日付'])
         next = df_after_tomorrow[df_after_tomorrow['日付'] == date_tomorrow]
         return next
+
+    def get_value_data(self):
+        df = copy(self.df_data)
+        df["終値"] = self.stock_obj.stdconv.unstd(df["終値"])
+        date_ary = []
+        for date in df["日付"].values:
+            date_ary.append(num_to_date(num=date, format="%Y/%m/%d"))
+
+        date_ary = np.array(date_ary)
+        df["日付"] = date_ary
+        return df[["日付","終値"]]
 
 def test():
     path_ary = ["../model/1301single/"]

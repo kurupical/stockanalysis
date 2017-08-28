@@ -133,7 +133,8 @@ if __name__ == "__main__":
             stock_con.load()
             charts = []
             for code in codes:
-                charts.append(Chart(code=int(code), stock_con=stock_con, date_to=start_date))
+                stock_obj = stock_con.get_data(code=code)
+                charts.append(Chart(stock_obj=stock_obj, date_to=start_date))
             trade_con = TradeController(start_money, assetmng, charts)
 
             for code in codes:
