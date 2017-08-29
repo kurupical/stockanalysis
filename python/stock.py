@@ -1,9 +1,13 @@
+# stockanalysis library
+from configparser import *
+from common import *
+# common library
 import glob
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
-from common import *
-from configparser import *
+import re
+import os
 
 class Stock:
     def __init__(self,
@@ -12,20 +16,20 @@ class Stock:
                 isUpdownratiomode=False,
                 input_items=None,
                 output_items=None,
-                unitrule_stock=None):
+                unitrule_stock=None,
+                code=None):
         self.isStdmode = isStdmode
         self.isUpdownratiomode = isUpdownratiomode
         self.input_items = input_items
         self.output_items = output_items
         self.unitrule_stock = unitrule_stock
-        try:
-            codes = read_data["証券コード"].values
-            self.code = codes[0]
-        except KeyError: # 株以外のデータをテストデータとして使用するとき
+        if code != None:
+            self.code = int(code)
+        else: # 株以外のデータをテストデータとして使用するとき
             print("KeyError: DEBUG_MODE")
             self.input_items=['0']
             self.output_items=['0']
-            self.code = ANALYSIS_CODE
+            self.code = 0
         self.all_data = read_data
         data = read_data[self.input_items]
 
@@ -90,11 +94,17 @@ class StockController:
         data = np.array([[]])
         for file in files:
             read_data = pd.read_csv(file)
+            # コードを取得
+            cmp = re.compile("[0-9]+")
+            code = cmp.match(os.path.basename(file))
+            if code != None:
+                code = code.group()
             if (len(read_data.index) != 0):
                 stock = Stock(read_data=read_data,
                               input_items=self.input_items,
                               output_items=self.output_items,
-                              unitrule_stock=self.unitrule_stock)
+                              unitrule_stock=self.unitrule_stock,
+                              code=code)
                 self.stockdata.append(stock)
             pbar.update(1)
         pbar.close()
@@ -263,10 +273,11 @@ class StockInfo:
 
     def get_info(self, code, mode="recent"):
         df = self.df_data[self.df_data["証券コード"] == code]
-        max_date = max(df["期末"])
-        if mode == "recent":
-            df = df[df["期末"] == max_date]
-            if len(df.index) > 1 :
-                df = df.loc[(df['連結個別'] == '連結')]
+        if len(df.index) > 0:
+            max_date = max(df["期末"])
+            if mode == "recent":
+                df = df[df["期末"] == max_date]
+                if len(df.index) > 1 :
+                    df = df.loc[(df['連結個別'] == '連結')]
 
         return df

@@ -42,7 +42,7 @@ class UnitRule_Stock_ForwardDay:
                     max_value = np.max(pred_ary)
                     min_value = np.min(pred_ary)
                     target.append([max_value, min_value])
-                tag = self._tag(df=df_tag.ix[i,:], unit_amount=self.unit_amount, idx=i)
+                tag = self._tag(df=df_tag.ix[i,:], stock_obj=stock_obj, unit_amount=self.unit_amount, idx=i)
             if len(x) == 1:
                 x = np.array(data).reshape(len(data), self.unit_amount, len(data[0][0]))
                 y = np.array(target).reshape(len(target),len(target[0]))
@@ -54,7 +54,7 @@ class UnitRule_Stock_ForwardDay:
 
         return x, y, ret_tag
 
-    def _tag(self, df, unit_amount, idx):
+    def _tag(self, df, unit_amount, stock_obj, idx):
         '''
         データのタグを返す
         '''
@@ -66,7 +66,7 @@ class UnitRule_Stock_ForwardDay:
         start_idx = idx
 
         # 銘柄
-        code = int(df.loc["証券コード"])
+        code = int(stock_obj.code)
 
         df = pd.DataFrame({ 'start_date': [start_date],
                             'start_idx': [start_idx],

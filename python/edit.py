@@ -83,13 +83,13 @@ def getstocksplit():
     return df
 
 def run():
-    df_stockinfo = getstockinfo()
+    # df_stockinfo = getstockinfo()
     df_stocksplit = getstocksplit()
 
     print(df_stocksplit)
 
     # output_path = DATASET_PATH + "stock_analysis/test.csv"
-    print(df_stockinfo.info())
+    # print(df_stockinfo.info())
     # df_stockinfo.to_csv(output_path)
 
     codes = common.get_stockscode()
@@ -117,7 +117,7 @@ def run():
         df_marge = df_marge.sort_values(by='日付')
 
         df_stocksplit_code = df_stocksplit.loc[(df_stocksplit['証券コード'] == int(code[0:4]))]
-        df_stockinfo_code = df_stockinfo.loc[(df_stockinfo['証券コード'] == int(code[0:4]))]
+        # df_stockinfo_code = df_stockinfo.loc[(df_stockinfo['証券コード'] == int(code[0:4]))]
         df_marge_stockinfo = pd.DataFrame()
 
         data_start, data_high, data_low, data_end, data_yield = \
@@ -156,6 +156,7 @@ def run():
         df_marge['終値'] = data_end
         df_marge['出来高'] = data_yield
 
+        '''
         for date_stock in df_marge['日付'].values:
             delete_flg = True
             df = df_stockinfo_code.sort_values(['期末'], ascending=False)
@@ -170,6 +171,7 @@ def run():
 
         df_marge = pd.concat([df_marge.reset_index(drop=True), df_marge_stockinfo.reset_index(drop=True)], axis=1)
         df_marge = df_marge.drop(["売買代金"], axis=1)
+        '''
 
         # コード以外は常用対数
         if "証券コード" in df_marge.columns:
