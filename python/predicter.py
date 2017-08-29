@@ -69,7 +69,10 @@ class Predicter_Nto1Predict_MaxMin(Predicter):
             self.original = self.chart.df_data['終値'].values
             original = self.original[:network.unit_amount].reshape(1, -1)
             input_data = np.array(input_data)
-            marge_data = np.concatenate((original, input_data), axis=0)
+            if len(input_data) > 0:
+                marge_data = np.concatenate((original, input_data), axis=0)
+            else:
+                marge_data = original
             # 予想対象の銘柄を先頭にする
             Z = marge_data.reshape(1, network.n_in, network.unit_amount)
 
