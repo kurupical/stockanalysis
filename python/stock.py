@@ -77,7 +77,8 @@ class StockController:
                  unitrule_stockcon,
                  stock_info,
                  input_items,
-                 output_items):
+                 output_items,
+                 isStdmode=True):
         self.csv_path = csv_path
         self.unitrule_stock = unitrule_stock
         self.unitrule_stockcon = unitrule_stockcon
@@ -85,6 +86,7 @@ class StockController:
         self.input_items = input_items
         self.output_items = output_items
         self.stockdata = [] # Stockオブジェクトを格納するlist
+        self.isStdmode = isStdmode
 
     def load(self):
         input_path = self.csv_path + "*.csv"
@@ -104,7 +106,8 @@ class StockController:
                               input_items=self.input_items,
                               output_items=self.output_items,
                               unitrule_stock=self.unitrule_stock,
-                              code=code)
+                              code=code,
+                              isStdmode=self.isStdmode)
                 self.stockdata.append(stock)
             pbar.update(1)
         pbar.close()
@@ -170,7 +173,7 @@ class StockController:
                 value = float(value[-1])
                 if (issued * value > min_value and issued * value < max_value):
                     ary.append(stock_obj)
-                    print("capOK! code:" + str(stock_obj.code) + " value:" + str(value), " issued:" + str(issued))
+                    print("時価総額条件クリア! code:" + str(stock_obj.code) + " 株価:" + str(value), " 発行株数:" + str(int(issued)))
 
         self.stockdata = ary
 

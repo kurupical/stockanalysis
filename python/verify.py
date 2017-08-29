@@ -156,7 +156,21 @@ def verify_cor(cor=None, code=None, unit=100):
     print("***************************************")
 
 def check_invalid_data():
-    stock_con = StockController()
+    csv_path = "../dataset/stock_analysis/"
+    stockinfo_path = "../dataset/stock_info.csv"
+    input_items = ["終値"]
+    output_items = ["終値"]
+
+    unitrule_s = 1
+    unitrule_sc = 1
+    stock_info = 1
+    stock_con = StockController(csv_path=csv_path,
+                                unitrule_stock=unitrule_s,
+                                unitrule_stockcon=unitrule_sc,
+                                stock_info=stock_info,
+                                input_items=input_items,
+                                output_items=output_items,
+                                isStdmode=False)
     stock_con.load()
 
     for stock_obj in stock_con.stockdata:
