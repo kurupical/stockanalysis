@@ -33,7 +33,11 @@ class VerifyModel:
 
         for i in range(times):
             # predicterの作成
-            predicter = Predicter.generate_predicter(model="Predicter_Nto1Predict_MaxMin",
+            if self.stock_con.unitrule_stockcon.__class__.__name__ == "UnitRule_Stockcon_Bundle":
+                model = "Predicter_Nto1Predict_MaxMin"
+            if self.stock_con.unitrule_stockcon.__class__.__name__ == "UnitRule_Stockcon_Normal":
+                model = "Predicter_1to1Predict_MaxMin"
+            predicter = Predicter.generate_predicter(model=model,
                                                      network_ary=[self.network])
             # chartの作成
             charts = []
@@ -68,8 +72,6 @@ class VerifyModel:
                 max_value = np.max(max_min)
                 min_value = np.min(max_min)
                 plt.figure()
-                title = "Code=", stock_obj.code
-                plt.title = "a"#, "start_date=", int(np.min(data["日付"].values))
                 plt.plot(data["終値"].values, color='black', label="end_value")
                 plt.legend()
                 plt.xlabel('date')
@@ -78,8 +80,7 @@ class VerifyModel:
                 x_min = x_max - forward_day
                 plt.hlines([min_value, max_value], x_min, x_max, linestyles="dashed")
                 filename = path + str(stock_obj.code) + ".jpeg"
+                title = "Code:" + str(stock_obj.code) + "  start_date:" + str(np.min(data["日付"].values))
+                plt.title(title)
                 plt.savefig(filename)
-                plt.show()
                 print("code:", stock_obj.code)
-                print("max_min:", stock_obj.stdconv.unstd(predicter.predicted))
-                print("実値:", chart.get_value_data())

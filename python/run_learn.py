@@ -1,40 +1,43 @@
+# stockanalysis library
 from stock import *
 from unitrule_stock import *
 from unitrule_stockcon import *
 from network import *
 from learn import *
-
+# common library
+import datetime
 
 def test():
     # とりあえずなんか動かしたい時用
     # @param
     unit_amount = 200
-    forward_day = 30
+    forward_day = 15
     predict_mode = "max_min"
     # predict_mode = "normal"
-    csv_path = "../dataset/debug/stock_analysis/"
+    csv_path = "../dataset/debug/stock_analysis/2dim/"
     stockinfo_path = "../dataset/stock_info.csv"
     test_ratio = 0.8
     batch_size = 50
     min_value = 0
-    max_value = 1.0*(10**10)
+    max_value = 0.7*(10**10)
     input_items = ["終値"]
     output_items = ["終値"]
+    unitrule_stockcon = "UnitRule_Stockcon_Normal"
     n_day = 800
-    layer = 3
-    n_hidden = 15
+    layer = 4
+    n_hidden = 30
     clf = "GRU"
     learning_rate = 0.001
     key = None
-    epochs = 1000000
-    result_path = "../result/" + time.ctime().replace(" ", "_") + "/"
+    epochs = 10000
+    result_path = "../result/" + datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S") + "/"
     config_path = result_path + "net_config.ini"
     YMDbefore = "2016/12/31"
 
     Configuration.log_path = result_path
 
     unitrule_s = UnitRule_Stock_ForwardDay(unit_amount=unit_amount, forward_day=forward_day, predict_mode=predict_mode)
-    unitrule_sc = UnitRule_Stockcon_Bundle()
+    unitrule_sc = UnitRule_Stockcon.generate_unitrule_stockcon("UnitRule_Stockcon_Normal")
     stock_info = StockInfo(path=stockinfo_path)
     stock_con = StockController(csv_path=csv_path,
                                 unitrule_stock=unitrule_s,
@@ -51,7 +54,7 @@ def test():
     stock_con.search_isexist_past_Nday(n_day=n_day)
     stock_con.unit_data()
     # networkの作成
-    n_in = len(stock_con.data_x[0])
+    n_in = len(stock_con.data_x[0,0])
     n_out = len(stock_con.data_y[0])
     network = Network_BasicRNN(unit_amount=unit_amount,
                                n_hidden=n_hidden,

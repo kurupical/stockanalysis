@@ -65,7 +65,8 @@ class Network_BasicRNN(Network):
         self.config_path = config_path
 
         # placeholderの宣言
-        self.x = tf.placeholder(tf.float32, shape=[None, n_in, unit_amount])
+        # self.x = tf.placeholder(tf.float32, shape=[None, n_in, unit_amount])
+        self.x = tf.placeholder(tf.float32, shape=[None, unit_amount, n_in])
         self.t = tf.placeholder(tf.float32, shape=[None, n_out])
         self.isTraining = tf.placeholder(tf.bool)
         self.n_batch = tf.placeholder(tf.int32, [])

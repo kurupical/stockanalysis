@@ -1,10 +1,39 @@
 import numpy as np
 from copy import copy
 
+class UnitRule_Stockcon:
+    @staticmethod
+    def generate_unitrule_stockcon(model):
+        if model == "UnitRule_Stockcon_Normal":
+            return UnitRule_Stockcon_Normal()
+        if model == "UnitRule_Stockcon_Bundle":
+            return UnitRule_Stockcon_Bundle()
+
+
+class UnitRule_Stockcon_Normal:
+    def __init__(self):
+        pass
+
+    def unit(self, stock_obj_ary):
+        x = np.array([[[]]])
+        y = np.array([[]])
+        tag_ary = []
+        for stock_obj in stock_obj_ary:
+            stock_obj.unit()
+            tag_ary.append(stock_obj.tag)
+            if len(x) == 1:
+                x = np.array(stock_obj.x)
+                y = np.array(stock_obj.y)
+            else:
+                x = np.concatenate((x, stock_obj.x), axis=0)
+                y = np.concatenate((y, stock_obj.y), axis=0)
+
+        return x, y, tag_ary
+
+
 class UnitRule_Stockcon_Bundle:
     def __init__(self):
-        print ("make:", self)
-        # 特に処理なし
+        pass
 
     def unit(self, stock_obj_ary):
         '''

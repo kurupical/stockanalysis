@@ -11,7 +11,7 @@ import common
 import glob
 import shutil
 
-SIZE = 300  # データサイズ
+SIZE = 1000  # データサイズ
 SEQUENCE_LENGTH = 100
 
 def divive_sequence(x):
@@ -59,7 +59,7 @@ def root_x_func(start=0):
     print ("root_x_func cor_ave=" + str(round(cor_ave,3)))
     return ["root_x_func", round(cor_ave,3)]
 
-def random_ndim_func(dim=None, name="nfunc_data.csv"):
+def random_ndim_func(dim=None, step=2, name="nfunc_data.csv"):
     def make_func(a=None,b=None,c=None,d=None,e=None,dim=dim):
         if a == None:
             a = random.uniform(SIZE*(-1/100), SIZE/100)
@@ -180,10 +180,15 @@ def check_invalid_data():
         for key, stock in stock_obj.data.iterrows():
             if stock_1daybefore != 0:
                 # 前日比２倍以上
-                if stock_1daybefore < stock['終値'] * 2 and msg1 == "OK":
+                if stock_1daybefore * 2 < stock['終値'] and msg1 == "OK":
                     print("＜前日比２倍以上＞銘柄:", stock_obj.code)
                     msg1 = "NG"
-                stock_1daybefore = stock['終値']
+
+                # 前日比1/2以下
+                if stock_1daybefore / 2 > stock['終値']*1.02 and msg1 == "OK":
+                    print("＜前日比半分以下＞銘柄:", stock_obj.code)
+                    msg1 = "NG"
+            stock_1daybefore = stock['終値']
 
             # 金額が異常値
             # if stock_obj.stdconv.unstd(np.array([stock['終値']])) > 10**8:
@@ -201,4 +206,5 @@ def check_invalid_data():
 if __name__ == '__main__':
     # 動かしたいメソッドを記述
     # verify_cor(cor=0.6, code=1301)
-    check_invalid_data()
+    # check_invalid_data()
+    random_ndim_func(dim=2)
