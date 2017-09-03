@@ -9,7 +9,7 @@ from sklearn.cross_validation import train_test_split
 import os
 
 class Learn:
-    def __init__(self, stock_con, network, test_ratio, unit_amount, batch_size, result_path, code_ary):
+    def __init__(self, stock_con, network, test_ratio, unit_amount, batch_size, result_path, code_ary, verify_model):
         self.x = stock_con.data_x
         self.y = stock_con.data_y
         self.stock_con = stock_con
@@ -17,6 +17,7 @@ class Learn:
         self.test_ratio = test_ratio
         self.unit_amount = unit_amount
         self.batch_size = batch_size
+        self.verify_model = verify_model
         self.n_in = len(self.x[0])
         self.n_out = len(self.y[0])
         self.N_train = int(len(self.x) * test_ratio)
@@ -82,6 +83,5 @@ class Learn:
         self.network.save(path=path_model, code_ary=self.code_ary)
 
     def _verify_model(self, epoch, path):
-        verifier = VerifyModel(network=self.network, stock_con=self.stock_con)
-        date_from = verifier.get_random_datefrom()
-        verifier.maxmin_graph_verify(times=1, date_from=date_from, path=path)
+        verifier = VerifyModel.generate_verify_model(network=self.network, stock_con=self.stock_con)
+        verifier.verify(path=path)

@@ -1,6 +1,7 @@
 # stockanalysis library
 from predicter import *
 from trade import *
+from configuration import *
 # common library
 from random import *
 from copy import *
@@ -10,6 +11,14 @@ class VerifyModel:
     '''
     learn.pyで学習したモデルを検証するためのクラス
     '''
+    @staticmethod
+    def generate_verify_model(network, stock_con):
+        config = Configuration.parse_from_file()
+        verify_model = config['param']['verify_model']
+
+        if verify_model == "VerifyModel_MaxMin_Graph":
+            return VerifyModel_MaxMin_Graph(network, stock_con, config)
+
     def __init__(self, network, stock_con):
         self.network = network
         self.stock_con = stock_con
@@ -23,15 +32,20 @@ class VerifyModel:
         # 数値型で返す
         return choice_date[0]
 
-    def maxmin_graph_verify(self, times, date_from, path):
+class VerifyModel_MaxMin_Graph(VerifyModel):
+    def __init__(self, network, stock_con, config):
+        super().__init__(network, stock_con)
+        self.times = int(config['param']['verify_times'])
 
+    def verify(self, path, date_from=None):
         date_format="%Y/%m/%d"
-
+        if date_from is None:
+            date_from = super().get_random_datefrom()
         # 数値で来た場合は日付に変換
         if date_from.__class__.__name__ != "str":
             date_from = num_to_date(num=date_from, format=date_format)
 
-        for i in range(times):
+        for i in range(self.times):
             # predicterの作成
             if self.stock_con.unitrule_stockcon.__class__.__name__ == "UnitRule_Stockcon_Bundle":
                 model = "Predicter_Nto1Predict_MaxMin"
@@ -84,3 +98,9 @@ class VerifyModel:
                 plt.title(title)
                 plt.savefig(filename)
                 print("code:", stock_obj.code)
+
+class VerifyModel_MaxMin_Classify(VerifyModel):
+    def __init__():
+        pass
+    def verify():
+        pass
