@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 class UnitRule_Stock_ForwardDay:
-    def __init__(self, unit_amount, forward_day, predict_mode):
+    def __init__(self, unit_amount, forward_day, predict_mode, classify_ratio=None):
         '''
         株データを単位ごとに分割するルールを定義
         unit_amount  : １単位あたりのデータ数
@@ -15,12 +15,13 @@ class UnitRule_Stock_ForwardDay:
             ・nornal
              forward_dayで指定した日数後の、output_itemsで指定しているデータを予想
             ・max_min
-             学習データの最終日からforward_dayで指定した日数間の中で、output_itemsで指定したデータの
+             学習データの最終日からforward_dayで指定した日数間の中で、output_itemsで指定したデータ
              最大値・最小値を予想（output_items="終値"の時のみ動作保証）
         '''
         self.unit_amount = unit_amount
         self.forward_day = forward_day
         self.predict_mode = predict_mode
+        self.classify_ratio = classify_ratio
 
     def unit(self, stock_obj):
         x = np.array([[[]]])
@@ -42,6 +43,17 @@ class UnitRule_Stock_ForwardDay:
                     max_value = np.max(pred_ary)
                     min_value = np.min(pred_ary)
                     target.append([max_value, min_value])
+                if self.predict_mode == "max_min_classify":
+                    pred_ary = data_ary[i + self.unit_amount : i + self.unit_amount + self.forward_day, :len(stock_obj.output_items)]
+                    max_value = stock_obj.stdconv.unstd(np.max(pred_ary))
+                    min_value = stock_obj.stdconv.unstd(np.min(pred_ary))
+                    final_value = stock_obj.stdconv.unstd(data[i][-1])
+                    max_value_ratio = (max_value - final_value) / final_value
+                    min_value_ratio = (min_value - final_value) / final_value
+                    w_target = []
+                    w_target.append(self._classify(max_value_ratio))
+                    w_target.append(self._classify(min_value_ratio))
+                    target.append(np.array(w_target).reshape(-1))
                 tag = self._tag(df=df_tag.ix[i,:], stock_obj=stock_obj, unit_amount=self.unit_amount, idx=i)
             if len(x) == 1:
                 x = np.array(data).reshape(len(data), self.unit_amount, len(data[0][0]))
@@ -73,3 +85,17 @@ class UnitRule_Stock_ForwardDay:
                             'code': [code],
                             'unit_amount': [unit_amount]})
         return df
+
+    def _classify(self, ratio):
+        '''
+        データを分類
+        '''
+
+        if ratio <= -1 * self.classify_ratio:
+            return 1,0,0,0
+        if ratio <= 0 and ratio > -1 * self.classify_ratio:
+            return 0,1,0,0
+        if ratio >= 0 and ratio < self.classify_ratio:
+            return 0,0,1,0
+        if ratio >= self.classify_ratio:
+            return 0,0,0,1
