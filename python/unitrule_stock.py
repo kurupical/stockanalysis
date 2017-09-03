@@ -52,7 +52,7 @@ class UnitRule_Stock_ForwardDay:
                     min_value_ratio = (min_value - final_value) / final_value
                     w_target = []
                     w_target.append(self._classify(max_value_ratio))
-                    w_target.append(self._classify(min_value_ratio))
+                    #w_target.append(self._classify(min_value_ratio))
                     target.append(np.array(w_target).reshape(-1))
                 tag = self._tag(df=df_tag.ix[i,:], stock_obj=stock_obj, unit_amount=self.unit_amount, idx=i)
             if len(x) == 1:
@@ -92,10 +92,8 @@ class UnitRule_Stock_ForwardDay:
         '''
 
         if ratio <= -1 * self.classify_ratio:
-            return 1,0,0,0
-        if ratio <= 0 and ratio > -1 * self.classify_ratio:
-            return 0,1,0,0
-        if ratio >= 0 and ratio < self.classify_ratio:
-            return 0,0,1,0
+            return 1,0,0
+        if ratio < self.classify_ratio and ratio > -1 * self.classify_ratio:
+            return 0,1,0
         if ratio >= self.classify_ratio:
-            return 0,0,0,1
+            return 0,0,1
