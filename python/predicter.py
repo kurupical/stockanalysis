@@ -59,7 +59,7 @@ class Predicter_1to1Predict_MaxMin(Predicter):
             for chart in charts:
                 if chart.code == code:
                     self.chart = chart
-            self.original = chart.df_data['終値'].values
+            self.original = self.chart.df_data['終値'].values
             self.predicted = []
             Z = self.original[:network.unit_amount].reshape(1, network.unit_amount, network.n_in)
             predicted = []
@@ -71,6 +71,7 @@ class Predicter_1to1Predict_MaxMin(Predicter):
 
             predicted.append(y_.reshape(-1))
             self.predicted = np.array(predicted).reshape(-1, network.n_out)
+            return self.predicted
 
 class Predicter_Nto1Predict_MaxMin(Predicter):
     '''
@@ -109,3 +110,5 @@ class Predicter_Nto1Predict_MaxMin(Predicter):
             })
             predicted = y_.reshape(-1)
             self.predicted = np.array(predicted).reshape(-1, network.n_out)
+            return self.predicted
+            

@@ -10,14 +10,14 @@ import datetime
 def test():
     # とりあえずなんか動かしたい時用
     # @param
-    unit_amount = 100
+    unit_amount = 200
     forward_day = 15
     predict_mode = "max_min_classify"
     # predict_mode = "max_min"
     # predict_mode = "normal"
     csv_path = "../dataset/debug/stock_analysis/"
     stockinfo_path = "../dataset/stock_info.csv"
-    test_ratio = 0.8
+    test_ratio = 0.9
     batch_size = 50
     min_value = 0
     max_value = 0.7*(10**10)
@@ -25,7 +25,7 @@ def test():
     input_items = ["終値"]
     output_items = ["終値"]
     unitrule_stockcon = "UnitRule_Stockcon_Normal"
-    n_day = 200
+    n_day = 800
     layer = 4
     n_hidden = 30
     clf = "GRU"
