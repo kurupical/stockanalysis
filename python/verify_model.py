@@ -58,6 +58,7 @@ class VerifyModel_MaxMin_Graph(VerifyModel):
         self.times = int(config['param']['verify_times'])
 
     def verify(self, path, date_from=None):
+        date_format="%Y/%m/%d"
         if date_from is None:
             date_from = super().get_random_datefrom()
         # 数値で来た場合は日付に変換

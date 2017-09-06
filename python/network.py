@@ -14,6 +14,8 @@ class Network:
             config.read(path + "model.ckpt.ini")
             if config['param']['network_model'] == "Network_BasicRNN":
                 network_ary.append(Network_BasicRNN.read_network(config=config, path=path))
+            if config['param']['network_model'] == "Network_BasicRNN_SoftMax":
+                network_ary.append(Network_BasicRNN_SoftMax.read_network(config=config, path=path))
 
         return network_ary
 
@@ -33,6 +35,7 @@ class Network_BasicRNN(Network):
         key = config['param']['key']
         codes = config['param']['codes'].split(",")
         config_path = config['param']['config_path']
+        classify_ratio = config['param']['classify_ratio']
 
         network = Network_BasicRNN(unit_amount=unit_amount,
                                    n_in=n_in,
@@ -42,19 +45,20 @@ class Network_BasicRNN(Network):
                                    layer=layer,
                                    learning_rate=learning_rate,
                                    key=key,
-                                   config_path=config_path)
+                                   config_path=config_path,
+                                   classify_ratio=classify_ratio)
         network.load(path + "model.ckpt")
         return network
 
-    def __init__(self, unit_amount, n_hidden, x, y, clf, layer, learning_rate, key=None, config_path=None):
+    def __init__(self, unit_amount, n_hidden, n_in, n_out, clf, layer, learning_rate, classify_ratio, key=None, config_path=None):
         '''
             clf : ネットワークの種類(RNN/LSTM/GRU)
         '''
         # save()で使うため、引数は保存しておく
         self.unit_amount = unit_amount
         self.n_hidden = n_hidden
-        self.n_in = len(x[0,0])
-        self.n_out = len(y[0])
+        self.n_in = n_in
+        self.n_out = n_out
         self.clf = clf
         self.layer = layer
         self.learning_rate = learning_rate
@@ -192,8 +196,9 @@ class Network_BasicRNN_SoftMax(Network):
         key = config['param']['key']
         codes = config['param']['codes'].split(",")
         config_path = config['param']['config_path']
+        classify_ratio = config['param']['classify_ratio']
 
-        network = Network_BasicRNN(unit_amount=unit_amount,
+        network = Network_BasicRNN_SoftMax(unit_amount=unit_amount,
                                    n_in=n_in,
                                    n_out=n_out,
                                    n_hidden=n_hidden,
@@ -201,19 +206,20 @@ class Network_BasicRNN_SoftMax(Network):
                                    layer=layer,
                                    learning_rate=learning_rate,
                                    key=key,
-                                   config_path=config_path)
+                                   config_path=config_path,
+                                   classify_ratio=classify_ratio)
         network.load(path + "model.ckpt")
         return network
 
-    def __init__(self, unit_amount, n_hidden, x, y, clf, layer, learning_rate, key=None, config_path=None):
+    def __init__(self, unit_amount, n_hidden, n_in, n_out, clf, layer, learning_rate, classify_ratio, key=None, config_path=None):
         '''
             clf : ネットワークの種類(RNN/LSTM/GRU)
         '''
         # save()で使うため、引数は保存しておく
         self.unit_amount = unit_amount
         self.n_hidden = n_hidden
-        self.n_in = len(x[0,0])
-        self.n_out = len(y[0])
+        self.n_in = n_in
+        self.n_out = n_out
         self.clf = clf
         self.layer = layer
         self.learning_rate = learning_rate
@@ -293,8 +299,13 @@ class Network_BasicRNN_SoftMax(Network):
         return y
 
     def _loss(self, y, t):
-        point = tf.constant([float(-1), float(0), float(1)], name="point")
-        mse = tf.reduce_mean(tf.square(y * point - t))
+        # point = tf.constant([float(-1), float(0), float(1)], name="point")
+        # mse = tf.reduce_mean(tf.square(y * point - t))
+
+        # 買い、売りは高く評価してあげる
+        if y[1] != 1:
+            t = t * 10
+        mse = -tf.reduce_sum(t * tf.log(y))
         return mse
 
     def _training(self, loss, learning_rate, beta1=0.9, beta2=0.999):

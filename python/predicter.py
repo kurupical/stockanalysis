@@ -16,6 +16,8 @@ class Predicter:
             return Predicter_1to1Predict_MaxMin(network_ary)
         if model == "Predicter_Nto1Predict_MaxMin":
             return Predicter_Nto1Predict_MaxMin(network_ary)
+        if model == "Predicter_Classify":
+            return Predicter_Classify(network_ary)
 
     # 予想機
     def __init__(self, network_ary):
@@ -111,4 +113,3 @@ class Predicter_Nto1Predict_MaxMin(Predicter):
             predicted = y_.reshape(-1)
             self.predicted = np.array(predicted).reshape(-1, network.n_out)
             return self.predicted
-            

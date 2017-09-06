@@ -35,13 +35,13 @@ def read_testpattern_ini(file):
     model_path_ary = config['param']['model_path_ary']
     model_path_ary = str_to_list(str=model_path_ary, split_char="\n")
     network_ary = Network.read_network(path_ary=model_path_ary)
-    predicter = Predicter.generate_predicter(predicter_model="Predicter_Nto1Predict_MaxMin", network_ary=network_ary)
+    predicter = Predicter.generate_predicter(model="Predicter_1to1Predict_MaxMin", network_ary=network_ary)
     # Algorithmの作成
     tradealgo_param_ary = config['param']['tradealgo_param_ary']
     tradealgo_param_ary = str_to_list(str=tradealgo_param_ary, split_char="\n")
     for algo_param in tradealgo_param_ary:
         algo_param = str_to_list(str=algo_param, split_char=",")
-        algos.append(select_algo(algo_param, predicter))
+        algos.append(Trade_Algorithm.generate_trade_algorithm(algo_param, predicter))
 
     # AssetManagerの作成
     assetmanager_param_ary = config['param']['assetmanager_param_ary']
@@ -133,7 +133,7 @@ if __name__ == "__main__":
             stock_con.load()
             charts = []
             for code in codes:
-                stock_obj = stock_con.get_data(code=code)
+                stock_obj = stock_con.get_data(code=int(code))
                 charts.append(Chart(stock_obj=stock_obj, date_to=start_date))
             trade_con = TradeController(start_money, assetmng, charts)
 

@@ -11,7 +11,7 @@ def test():
     # とりあえずなんか動かしたい時用
     # @param
     unit_amount = 200
-    forward_day = 15
+    forward_day = 5
     predict_mode = "max_min_classify"
     # predict_mode = "max_min"
     # predict_mode = "normal"
@@ -20,8 +20,8 @@ def test():
     test_ratio = 0.9
     batch_size = 50
     min_value = 0
-    max_value = 0.7*(10**10)
-    classify_ratio = 0.1
+    max_value = 0.5*(10**10)
+    classify_ratio = 0.03
     input_items = ["終値"]
     output_items = ["終値"]
     unitrule_stockcon = "UnitRule_Stockcon_Normal"
@@ -58,15 +58,18 @@ def test():
     stock_con.unit_data()
     # networkの作成
     #network = Network_BasicRNN(unit_amount=unit_amount,
+    n_in = len(stock_con.data_x[0,0])
+    n_out = len(stock_con.data_y[0])
     network = Network_BasicRNN_SoftMax(unit_amount=unit_amount,
                                n_hidden=n_hidden,
-                               x=stock_con.data_x,
-                               y=stock_con.data_y,
+                               n_in=n_in,
+                               n_out=n_out,
                                clf=clf,
                                layer=layer,
                                learning_rate=learning_rate,
                                key=key,
-                               config_path=config_path)
+                               config_path=config_path,
+                               classify_ratio=classify_ratio)
 
     # 学習
     code_ary = stock_con.get_stockcode_ary()
