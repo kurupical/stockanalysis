@@ -62,7 +62,7 @@ class Network_BasicRNN(Network):
         self.clf = clf
         self.layer = layer
         self.learning_rate = learning_rate
-        if key is None:
+        if key == "Nothing":
             self.key = random.random()
         else:
             self.key = key
