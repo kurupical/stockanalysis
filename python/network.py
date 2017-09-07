@@ -223,7 +223,7 @@ class Network_BasicRNN_SoftMax(Network):
         self.clf = clf
         self.layer = layer
         self.learning_rate = learning_rate
-        if key is None:
+        if key == "Nothing":
             self.key = random.random()
         else:
             self.key = key
@@ -282,7 +282,7 @@ class Network_BasicRNN_SoftMax(Network):
         state = initial_state
         outputs = []
         #with tf.variable_scope(clf + str(random.random())):
-        with tf.variable_scope(clf, self.key):
+        with tf.variable_scope(clf + str(self.key)):
             for t in range(maxlen):
                 if t > 0:
                     tf.get_variable_scope().reuse_variables()

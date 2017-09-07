@@ -15,7 +15,8 @@ class Logger:
         now = datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
         if self.obj is not None:
             obj_name = self.obj.__class__.__name__
-
+        else:
+            obj_name = ""
         # ログ出力
         file = open(self.path, 'a')
         file.write(str(now) +  "," + str(obj_name) + "," + log + "\n")

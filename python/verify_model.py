@@ -2,6 +2,7 @@
 from predicter import *
 from trade import *
 from configuration import *
+from logger import *
 # common library
 from random import *
 from copy import *
@@ -13,17 +14,17 @@ class VerifyModel:
     '''
     @staticmethod
     def generate_verify_model(network, stock_con):
-        config = Configuration.parse_from_file()
-        verify_model = config['param']['verify_model']
+        verify_model = Configuration.config['param']['verify_model']
 
         if verify_model == "VerifyModel_MaxMin_Graph":
-            return VerifyModel_MaxMin_Graph(network, stock_con, config)
+            return VerifyModel_MaxMin_Graph(network, stock_con)
         if verify_model == "VerifyModel_MaxMin_Classify":
-            return VerifyModel_MaxMin_Classify(network, stock_con, config)
+            return VerifyModel_MaxMin_Classify(network, stock_con)
 
     def __init__(self, network, stock_con):
         self.network = network
         self.stock_con = stock_con
+        self.logger = Logger(Configuration.log_path)
 
     def get_random_datefrom(self):
         stock_obj = self.stock_con.stockdata[0]
@@ -53,9 +54,9 @@ class VerifyModel:
         return charts
 
 class VerifyModel_MaxMin_Graph(VerifyModel):
-    def __init__(self, network, stock_con, config):
+    def __init__(self, network, stock_con):
         super().__init__(network, stock_con)
-        self.times = int(config['param']['verify_times'])
+        self.times = int(Configuration.config['param']['verify_times'])
 
     def verify(self, path, date_from=None):
         date_format="%Y/%m/%d"
@@ -108,7 +109,7 @@ class VerifyModel_MaxMin_Graph(VerifyModel):
                 print("code:", stock_obj.code)
 
 class VerifyModel_MaxMin_Classify(VerifyModel):
-    def __init__(self, network, stock_con, config):
+    def __init__(self, network, stock_con):
         super().__init__(network, stock_con)
 
     def verify(self, path):
@@ -133,8 +134,27 @@ class VerifyModel_MaxMin_Classify(VerifyModel):
                 y_result = np.argmax(y, axis=0)
 
                 pred_result_table[y_pred, y_result] += 1
-            print("code:", stock_obj.code)
-            print(pred_result_table)
+            self.logger.log("code:" + str(stock_obj.code))
+            self.logger.log("\n%s" % pred_result_table)
             total_pred_result_table += pred_result_table
+
+        output_log = "total:\n%s" % (total_pred_result_table)
+        self.logger.log("(予想/結果)")
+        self.logger.log("(Buy:N%以上up/Sell:N%以上down/Stay:それ以外)")
+        self.logger.log("(Sell/Sell):" + str(total_pred_result_table[0,0]))
+        self.logger.log("(Sell/Stay):" + str(total_pred_result_table[0,1]))
+        self.logger.log("(Sell/Buy):" + str(total_pred_result_table[0,2]))
+        self.logger.log("(Stay/Sell):" + str(total_pred_result_table[1,0]))
+        self.logger.log("(Stay/Stay):" + str(total_pred_result_table[1,1]))
+        self.logger.log("(Stay/Buy):" + str(total_pred_result_table[1,2]))
+        self.logger.log("(Buy/Sell):" + str(total_pred_result_table[2,0]))
+        self.logger.log("(Buy/Stay):" + str(total_pred_result_table[2,1]))
+        self.logger.log("(Buy/Buy):" + str(total_pred_result_table[2,2]))
+        correct_buy = total_pred_result_table[2,2] / \
+                      (total_pred_result_table[0,2] + total_pred_result_table[1,2] + total_pred_result_table[2,2])
+        wrong_buy = (total_pred_result_table[2,0] + total_pred_result_table[2,1]) / \
+                    (total_pred_result_table[2,0] + total_pred_result_table[2,1] + total_pred_result_table[2,2])
+        self.logger.log("「買い」タイミングで正しく買えた率:" + str(correct_buy))
+        self.logger.log("「買い」でないタイミングで誤って買った率:" + str(wrong_buy))
         print("縦軸：予想, 横軸:実際の結果")
-        print("total:\n", total_pred_result_table)
+        print(output_log)

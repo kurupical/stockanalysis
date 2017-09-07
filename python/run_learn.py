@@ -4,8 +4,10 @@ from unitrule_stock import *
 from unitrule_stockcon import *
 from network import *
 from learn import *
+from glob import glob
 # common library
 import datetime
+import shutil
 
 def test():
     # とりあえずなんか動かしたい時用
@@ -38,6 +40,7 @@ def test():
 
     Configuration.log_path = result_path
 
+
     unitrule_s = UnitRule_Stock_ForwardDay(unit_amount=unit_amount, forward_day=forward_day, predict_mode=predict_mode, classify_ratio=classify_ratio)
     unitrule_sc = UnitRule_Stockcon.generate_unitrule_stockcon("UnitRule_Stockcon_Normal")
     stock_info = StockInfo(path=stockinfo_path)
@@ -84,9 +87,10 @@ def test():
     stock_con.save_config(path=result_path)
     learner.learn(epochs=epochs)
 
-def main(config):
+def main(config, filename):
     # iniファイルから読むとかいう処理はこっちで後で書く
     # @param
+    print("\n\n\n\n\n\n     learn Start!!   target:", filename, "\n\n\n\n\n\n\n\n")
     unit_amount = int(config['param']['unit_amount'])
     forward_day = int(config['param']['forward_day'])
     predict_mode = config['param']['predict_mode']
@@ -105,14 +109,19 @@ def main(config):
     n_hidden = int(config['param']['n_hidden'])
     clf = config['param']['clf']
     learning_rate = float(config['param']['learning_rate'])
-    key = config['param']['key']
+    key = str(config['param']['key'])
     epochs = int(config['param']['epochs'])
-    result_path = "../result/" + datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S") + "/"
+    result_path_root = "../result/" + Configuration.now + "/"
+    result_path = result_path_root + filename + "/"
     config_path = result_path + "net_config.ini"
     verify_model = config['param']['verify_model']
     YMDbefore = config['param']['YMDbefore']
 
-    Configuration.log_path = result_path
+    Configuration.log_path = result_path_root + "result_log.log"
+    if not os.path.isdir(result_path_root):
+        os.mkdir(result_path_root)
+    logger = Logger(path=Configuration.log_path)
+    logger.log("\n\n===============================   " + filename + "   START!===============================")
 
     unitrule_s = UnitRule_Stock_ForwardDay(unit_amount=unit_amount, forward_day=forward_day, predict_mode=predict_mode, classify_ratio=classify_ratio)
     unitrule_sc = UnitRule_Stockcon.generate_unitrule_stockcon("UnitRule_Stockcon_Normal")
@@ -159,11 +168,17 @@ def main(config):
 
     stock_con.save_config(path=result_path)
     learner.learn(epochs=epochs)
+    shutil.move(file, result_path + "learn_ini.ini") #本来ここじゃないけど
+    logger.log("\n\n===============================   " + filename + "   END!===============================")
+
 
 if __name__ == "__main__":
     #test()
+    Configuration.now = datetime.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
     input_path = "../learn_ini/*.ini"
-    files = glob.glob(input_path)
+    files = glob(input_path)
     for file in files:
-        config = Configuration.parse_from_file(path=file)
-        main(config)
+        Configuration.parse_from_file(path=file)
+        filename, ext = os.path.splitext(os.path.basename(file))
+
+        main(config=Configuration.config, filename=filename)

@@ -66,16 +66,32 @@ class Learn:
             print(run_log)
             timelap.reset()
 
+            if (epoch+1) % 100 == 0:
+                self.logger.log(run_log)
             if (epoch+1) % 1000 == 0:
                 self._output_result(epoch)
 
         self._output_result(epoch)
+        self._output_loss_graph()
 
     def _output_result(self, epoch):
         path = self.result_path + "/" + str(epoch) + "/"
-        os.mkdir(path)
+        if not os.path.isdir(path):
+            os.mkdir(path)
         self._save(epoch, path)
         self._verify_model(epoch, path)
+
+    def _output_loss_graph(self):
+        path = self.result_path + "/loss_graph.jpeg"
+
+        plt.figure()
+        data = self.history['val_loss']
+        plt.plot(data, color='black', label='loss')
+        plt.legend()
+        plt.xlabel('epoch')
+        plt.ylabel('loss')
+        filename = path
+        plt.savefig(filename)
 
     def _save(self, epoch, path):
         # ネットワーク情報

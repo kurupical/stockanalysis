@@ -206,5 +206,6 @@ def check_invalid_data():
 if __name__ == '__main__':
     # 動かしたいメソッドを記述
     # verify_cor(cor=0.6, code=1301)
-    check_invalid_data()
-    # random_ndim_func(dim=2)
+    # check_invalid_data()
+    random_ndim_func(dim=3)
+    random_ndim_func(dim=4)
