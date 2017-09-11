@@ -305,7 +305,8 @@ class Network_BasicRNN_SoftMax(Network):
         # 買い、売りは高く評価してあげる
         if y[1] != 1:
             t = t * 10
-        mse = -tf.reduce_sum(t * tf.log(y))
+        delta = 1e-7
+        mse = -tf.reduce_sum(t * tf.log(y + delta))
         return mse
 
     def _training(self, loss, learning_rate, beta1=0.9, beta2=0.999):

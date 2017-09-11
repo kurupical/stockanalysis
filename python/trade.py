@@ -82,6 +82,15 @@ class TradeController:
             # test
             print("日付:", num_to_date(self.get_chart(trade_obj.code).get_today_date(), format="%Y/%m/%d"))
 
+    def contract(self):
+        '''
+        指値、逆指値の約定処理を行う
+        '''
+        for key, holdstock in self.holdstock.iterrows():
+            chart = self.get_chart(holdstock['code'])
+            price_today 
+
+
     def _unhold(self, code, amount):
         '''
         指定されたコードの指定された株数を減らす
