@@ -69,13 +69,12 @@ class Learn:
             if (epoch+1) % 100 == 0:
                 self.logger.log(run_log)
             if (epoch+1) % 1000 == 0:
-                '''
                 path = self.result_path + "/" + str(epoch) + "/"
                 if not os.path.isdir(path):
                     os.mkdir(path)
                 self._verify_model(epoch, path)
                 self._output_loss_graph()
-                '''
+            if (epoch+1) % 10000 == 0:
                 self._output_result(epochs)
         self._output_result(epochs)
 

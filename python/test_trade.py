@@ -141,5 +141,6 @@ if __name__ == "__main__":
                 trade_obj = Trade(code=int(code), tradealgo=tradealgos, predicter=predicter, stock_con=stock_con, date_to=start_date)
                 trade_con.add_trade(trade_obj)
             for i in range(test_term):
+                trade_con.contract()
                 trade_con.trade()
                 trade_con.forward_1day()

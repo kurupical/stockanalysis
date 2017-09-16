@@ -94,7 +94,7 @@ class Updown_Npercent_ClassifyMode:
 
         if judge == 0: # sell
             judge = "sell"
-            amount = 100
+            amount = int(200000 / final_value)
             limit_price = 0
             stop_loss = 0
 
@@ -103,7 +103,7 @@ class Updown_Npercent_ClassifyMode:
 
         if judge == 2: # buy
             judge = "buy"
-            amount = 100
+            amount = int(200000 / final_value)
             limit_price = int(final_value * (1 + self.n_percent/100))
             stop_loss = int(final_value * (1 - self.n_percent/100))
 

@@ -40,6 +40,7 @@ class TradeController:
         self.total_asset = init_money
         self.charts = charts
         self.trade_ary = []
+        self.logger = Logger(path=Configuration.log_path, obj=self)
 
     def add_trade(self, trade_obj):
         self.trade_ary.append(trade_obj)
@@ -67,12 +68,15 @@ class TradeController:
                                                                 limit_price=limit_price,
                                                                 stop_loss=stop_loss,
                                                                 chart=self.get_chart(trade_obj.code))
-                        self.money -= df_history['price'].values * df_history['amount'].values
+                        buy_price = df_history['price'].values * df_history['amount'].values
+                        self.money -= buy_price
+                        self.money -= self._calc_tax(buy_price)
                         self.holdstock = pd.concat([self.holdstock, df_holdstock])
                         self.trade_history = pd.concat([self.history, df_history])
                         self.id += 1
 
                     if judge == "sell":
+                        # ここ未実装
                         df_history = trade_obj.sell(id=self.id, amount=amount)
                         self.trade_history = pd.concat([self.history, df_history])
                         self.money += df_history['price'].values
@@ -87,8 +91,36 @@ class TradeController:
         指値、逆指値の約定処理を行う
         '''
         for key, holdstock in self.holdstock.iterrows():
+            # 現在額を取得
             chart = self.get_chart(holdstock['code'])
-            price_today 
+            price_today = chart.get_today_price()
+
+            if holdstock['limit_price'] < price_today:
+                contract_price = holdstock['limit_price'] * holdstock['amount']
+                self.money += contract_price
+                self.money -= self._calc_tax(contract_price)
+                # 保有株の削除
+                self.holdstock = self.holdstock[self.holdstock['id'] != holdstock['id']]
+                log = "stop_loss,id=" + str(holdstock['id']) + \
+                      "code=" + str(holdstock['code']) + \
+                      ",contract_price=" + str(holdstock['limit_price']) + \
+                      ",buy_price=" + str(holdstock['price']) + \
+                      ",amount=" + str(holdstock['amount']) + \
+                      ",benefit=" + str(price_today - holdstock['price'])
+                self.logger.log(log)
+            if holdstock['stop_loss'] > price_today:
+                contract_price = holdstock['stop_loss'] * holdstock['amount']
+                self.money += contract_price
+                self.money -= self._calc_tax(contract_price)
+                # 保有株の削除
+                self.holdstock = self.holdstock[self.holdstock['id'] != holdstock['id']]
+                log = "stop_loss,id=" + str(holdstock['id']) + \
+                      "code=" + str(holdstock['code']) + \
+                      ",contract_price=" + str(holdstock['stop_loss']) + \
+                      ",buy_price=" + str(holdstock['price']) + \
+                      ",amount=" + str(holdstock['amount']) + \
+                      ",benefit=" + str(price_today - holdstock['price'])
+                self.logger.log(log)
 
 
     def _unhold(self, code, amount):
@@ -165,6 +197,23 @@ class TradeController:
                 return trade_obj
         return None
 
+    def _calc_tax(self, price):
+        '''
+        売買手数料を計算
+        '''
+        if price <= 100000:
+            return 150
+        if price <= 200000:
+            return 199
+        if price <= 500000:
+            return 293
+        if price <= 1000000:
+            return 487
+        if price <= 1500000:
+            return 582
+        if price <= 30000000:
+            return 994
+        return 1050
 class Trade:
     # チャート予測から株の売買までを行う
     # →不要な気がする。消すかも

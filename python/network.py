@@ -67,6 +67,7 @@ class Network_BasicRNN(Network):
         else:
             self.key = key
         self.config_path = config_path
+        self.classify_ratio = classify_ratio
 
         # placeholderの宣言
         # self.x = tf.placeholder(tf.float32, shape=[None, n_in, unit_amount])
@@ -228,6 +229,7 @@ class Network_BasicRNN_SoftMax(Network):
         else:
             self.key = key
         self.config_path = config_path
+        self.classify_ratio = classify_ratio
 
         # placeholderの宣言
         # self.x = tf.placeholder(tf.float32, shape=[None, n_in, unit_amount])
@@ -304,7 +306,7 @@ class Network_BasicRNN_SoftMax(Network):
 
         # 買い、売りは高く評価してあげる
         if y[1] != 1:
-            t = t * 10
+            t = t * 100
         delta = 1e-7
         mse = -tf.reduce_sum(t * tf.log(y + delta))
         return mse
@@ -341,6 +343,7 @@ class Network_BasicRNN_SoftMax(Network):
                             'key':              self.key,
                             'codes':            codes,
                             'config_path':      self.config_path,
+                            'classify_ratio':   self.classify_ratio,
                             'network_model':    self.__class__.__name__  }
         with open(path + '.ini', 'w') as configfile:
             config.write(configfile)
